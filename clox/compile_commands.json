@@ -3,6 +3,7 @@
   "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
   "arguments": [
    "gcc",
+   "-g",
    "-c",
    "main.c"
   ],
@@ -12,6 +13,7 @@
   "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
   "arguments": [
    "gcc",
+   "-g",
    "-c",
    "chunk.c"
   ],
@@ -21,6 +23,7 @@
   "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
   "arguments": [
    "gcc",
+   "-g",
    "-c",
    "memory.c"
   ],
