@@ -1,0 +1,29 @@
+[
+ {
+  "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
+  "arguments": [
+   "gcc",
+   "-c",
+   "main.c"
+  ],
+  "file": "main.c"
+ },
+ {
+  "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
+  "arguments": [
+   "gcc",
+   "-c",
+   "chunk.c"
+  ],
+  "file": "chunk.c"
+ },
+ {
+  "directory": "/home/patroclus/Projects/Clox-Interpreter/clox",
+  "arguments": [
+   "gcc",
+   "-c",
+   "memory.c"
+  ],
+  "file": "memory.c"
+ }
+]
