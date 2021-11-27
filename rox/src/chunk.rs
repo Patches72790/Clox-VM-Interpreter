@@ -12,7 +12,7 @@ pub struct Chunk {
     count: i32,
     code: Vec<OpCode>,
     constants: Values,
-    lines: String,
+    lines: Vec<String>,
 }
 
 impl Chunk {
@@ -25,7 +25,7 @@ impl Chunk {
             count: 0,
             code: vec![],
             constants: Values::new(),
-            lines: String::from(""),
+            lines: vec![],
         }
     }
 
@@ -35,23 +35,59 @@ impl Chunk {
      * If the size exceeds the capacity, the capacity is
      * automatically increased to account for the increase.
      */
-    pub fn write_chunk(&mut self, byte: OpCode) {
-        self.code.push(byte);
-
-        let last_index = self.lines.split("L").last();
-        let last_index = match last_index {
-            Some(val) => val,
-            None => panic!("error no value in last"),
-        };
-
-        let _ = last_index.replace(last_index, &self.count.to_string());
-
-        self.lines.push_str(&(self.count.to_string() + "_"));
+    pub fn write_chunk(&mut self, byte: OpCode, line: usize) {
+        self.code.push(byte.clone());
+        Chunk::write_line_info(self, line, &byte);
         self.count += 1;
     }
 
+    /**
+     * Writes the line info for each byte code instruction to the chunk's
+     * line vector for keeping track of line data.
+     */
+    fn write_line_info(chunk: &mut Chunk, line: usize, byte: &OpCode) {
+        if line > chunk.lines.len() {
+            // possibly add blank lines?
+            let num_blank_lines = line - (chunk.lines.len() + 1);
+
+            // this is a new line
+            let new_count = match chunk.lines.last() {
+                // add up the previous lines count
+                Some(val) => val.parse::<i32>().unwrap() + 1,
+                None => 1,
+            };
+
+            // TODO -- how not to pad lines with count for empty lines?
+            for _ in 0..num_blank_lines {
+                chunk.lines.push(String::from((new_count - 1).to_string()));
+            }
+
+            chunk.lines.push(String::from(new_count.to_string()));
+        } else {
+            // increment number of instructions in current line
+            let current_line = match chunk.lines.pop() {
+                Some(val) => val,
+                None => panic!(
+                    "No string index value for the current line {} and byte {}!",
+                    line, byte
+                ),
+            };
+            let mut num_bytes_in_line = current_line.parse::<i32>().unwrap();
+            num_bytes_in_line += 1;
+            chunk.lines.push(num_bytes_in_line.to_string());
+        }
+    }
+
     fn get_line(&self, index: usize) -> usize {
-        unimplemented!()
+        let result = self
+            .lines
+            .iter()
+            .enumerate()
+            .find(|(_, line)| index < line.parse::<usize>().unwrap());
+        if let Some(val) = result {
+            return val.0 + 1;
+        }
+        panic!("Index {} not in lines list!", index);
     }
 
     /**
@@ -83,20 +119,19 @@ impl Chunk {
     fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) -> usize {
         print!("{:0>4} ", offset);
 
+        print!("{:>4} ", chunk.get_line(offset));
+        print!("Lines: {:?} ", chunk.lines);
+
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN", offset),
             OpCode::OpConstant(constants_index) => {
                 Chunk::constant_instruction("OP_CONSTANT", *constants_index, offset, chunk)
             }
-            _ => {
-                println!("Unknown opcode {:?}", instr);
-                offset + 1
-            }
         }
     }
 
     fn constant_instruction(name: &str, index: usize, offset: usize, chunk: &Chunk) -> usize {
-        print!("{:>16} {:<4}'", name, index);
+        print!("{:>11} {:<4}'", name, index);
         match chunk.constants.values.get(index) {
             Some(val) => print!("{}", val),
             None => panic!("No constant value at that index!"),
