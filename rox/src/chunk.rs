@@ -98,7 +98,7 @@ impl Chunk {
         println!("== {} ==", name);
 
         let mut offset = 0;
-        for byte in self.code.iter() {
+        for (i, byte) in self.code.iter().enumerate() {
             offset = Chunk::disassemble_instruction(byte, offset, self);
         }
     }
