@@ -97,9 +97,9 @@ impl Chunk {
     pub fn disassemble_chunk(&self, name: &str) {
         println!("== {} ==", name);
 
-        let mut offset = 0;
-        for (i, byte) in self.code.iter().enumerate() {
-            offset = Chunk::disassemble_instruction(byte, offset, self);
+        for (offset, byte) in self.code.iter().enumerate() {
+            // offset into code vector is just the index
+            Chunk::disassemble_instruction(byte, offset, self);
         }
     }
 
@@ -116,33 +116,31 @@ impl Chunk {
      * Helper function for disassembling bytecode instructions instructions
      * in the bytecode vector for Chunk.
      */
-    fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) -> usize {
+    fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
         print!("{:0>4} ", offset);
 
         print!("{:>4} ", chunk.get_line(offset));
-        print!("Lines: {:?} ", chunk.lines);
+                print!("Lines: {:?} ", chunk.lines);
 
         match instr {
-            OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN", offset),
+            OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
             OpCode::OpConstant(constants_index) => {
-                Chunk::constant_instruction("OP_CONSTANT", *constants_index, offset, chunk)
+                Chunk::constant_instruction("OP_CONSTANT", *constants_index, chunk)
             }
-        }
+        };
     }
 
-    fn constant_instruction(name: &str, index: usize, offset: usize, chunk: &Chunk) -> usize {
+    fn constant_instruction(name: &str, index: usize, chunk: &Chunk) {
         print!("{:>11} {:<4}'", name, index);
         match chunk.constants.values.get(index) {
             Some(val) => print!("{}", val),
             None => panic!("No constant value at that index!"),
         };
         print!("'\n");
-        offset + 1
     }
 
-    fn simple_instruction(name: &str, offset: usize) -> usize {
+    fn simple_instruction(name: &str) {
         println!("{}", name);
-        offset + 1
     }
 }
 
@@ -150,13 +148,45 @@ impl Chunk {
 mod tests {
     use super::*;
     #[test]
-    fn test_write_chunk() {}
+    fn test_write_chunk() {
+        let mut my_c = Chunk::new();
+
+        my_c.write_chunk(OpCode::OpReturn(8), 1);
+        my_c.write_chunk(OpCode::OpReturn(22), 1);
+        my_c.write_chunk(OpCode::OpReturn(55), 1);
+        let index = my_c.add_constant(Value::Number(69.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 2);
+        let index = my_c.add_constant(Value::Number(42.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 2);
+
+        assert_eq!(my_c.count, 5);
+        assert_eq!(my_c.lines.len(), 2);
+    }
 
     #[test]
-    fn test_write_op_return() {}
+    fn test_write_constants() {
+        let mut my_c = Chunk::new();
+
+        let index = my_c.add_constant(Value::Number(69.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 1);
+        let index = my_c.add_constant(Value::Number(42.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 1);
+        let index = my_c.add_constant(Value::Number(35.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 1);
+
+        assert_eq!(my_c.constants.values.len(), 3);
+    }
 
     #[test]
     fn test_disassemble_chunk() {
-        let c = Chunk::new();
+        let mut my_c = Chunk::new();
+
+        my_c.write_chunk(OpCode::OpReturn(8), 1);
+        my_c.write_chunk(OpCode::OpReturn(22), 1);
+        my_c.write_chunk(OpCode::OpReturn(55), 1);
+        let index = my_c.add_constant(Value::Number(69.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 2);
+        let index = my_c.add_constant(Value::Number(42.0));
+        my_c.write_chunk(OpCode::OpConstant(index), 2);
     }
 }
