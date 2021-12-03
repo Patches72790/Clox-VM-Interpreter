@@ -1,12 +1,10 @@
 use crate::OpCode;
 use crate::{Value, Values};
 
-/**
- * The Chunk type corresponds to the basic block
- * of code with a size of count and capacity.
- * The code vector corresponds to the list of instructions
- * of type OpCode.
- */
+///The Chunk type corresponds to the basic block
+///of code with a size of count and capacity.
+///The code vector corresponds to the list of instructions
+///of type OpCode.
 #[derive(Debug)]
 pub struct Chunk {
     count: i32,
@@ -16,10 +14,10 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    /**
-     * Creates and returns a new chunk with size/capacity of 0.
-     * The code vector is initially set to Option<None>.
-     */
+    ///
+    ///Creates and returns a new chunk with size/capacity of 0.
+    ///The code vector is initially set to Option<None>.
+    ///
     pub fn new() -> Chunk {
         Chunk {
             count: 0,
@@ -29,22 +27,22 @@ impl Chunk {
         }
     }
 
-    /**
-     * Writes the specified byte to the instruction code vector
-     * contained within this Chunk and increments the count.
-     * If the size exceeds the capacity, the capacity is
-     * automatically increased to account for the increase.
-     */
+    ///
+    ///Writes the specified byte to the instruction code vector
+    ///contained within this Chunk and increments the count.
+    ///If the size exceeds the capacity, the capacity is
+    ///automatically increased to account for the increase.
+    ///
     pub fn write_chunk(&mut self, byte: OpCode, line: usize) {
         self.code.push(byte.clone());
         Chunk::write_line_info(self, line, &byte);
         self.count += 1;
     }
 
-    /**
-     * Writes the line info for each byte code instruction to the chunk's
-     * line vector for keeping track of line data.
-     */
+    ///
+    ///Writes the line info for each byte code instruction to the chunk's
+    ///line vector for keeping track of line data.
+    ///
     fn write_line_info(chunk: &mut Chunk, line: usize, byte: &OpCode) {
         if line > chunk.lines.len() {
             // possibly add blank lines?
@@ -90,10 +88,10 @@ impl Chunk {
         panic!("Index {} not in lines list!", index);
     }
 
-    /**
-     * This debug function disassembles the Chunk by iterating through
-     * its list of bytecode instructions.
-     */
+    ///
+    ///This debug function disassembles the Chunk by iterating through
+    ///its list of bytecode instructions.
+    ///
     pub fn disassemble_chunk(&self, name: &str) {
         println!("== {} ==", name);
 
@@ -103,24 +101,22 @@ impl Chunk {
         }
     }
 
-    /**
-     * Convenience method for writing value to the constants Values array inside Chunk.
-     *
-     * returns the index at which the value was added to the constants array
-     */
+    ///
+    ///Convenience method for writing value to the constants Values array inside Chunk.
+    ///
+    ///returns the index at which the value was added to the constants array
+    ///
     pub fn add_constant(&mut self, value: Value) -> usize {
         self.constants.write_value(value)
     }
 
-    /**
-     * Helper function for disassembling bytecode instructions instructions
-     * in the bytecode vector for Chunk.
-     */
+    ///Helper function for disassembling bytecode instructions instructions
+    ///in the bytecode vector for Chunk.
     fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
         print!("{:0>4} ", offset);
 
         print!("{:>4} ", chunk.get_line(offset));
-                print!("Lines: {:?} ", chunk.lines);
+        print!("Lines: {:?} ", chunk.lines);
 
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
