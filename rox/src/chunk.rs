@@ -9,7 +9,7 @@ use crate::{Value, Values};
 pub struct Chunk {
     count: i32,
     pub code: Vec<OpCode>,
-    constants: Values,
+    pub constants: Values,
     lines: Vec<String>,
 }
 

@@ -30,8 +30,12 @@ impl VM {
         }
     }
 
-    fn read_constant(&mut self) -> Option<Value> {
-        None
+    fn read_constant(&self, index: usize) -> Option<&Value> {
+        if let Some(val) = self.chunk.constants.values.get(index) {
+            Some(val)
+        } else {
+            None
+        }
     }
 
     fn run(&mut self) -> InterpretResult {
@@ -47,9 +51,8 @@ impl VM {
 
             match instruction {
                 OpCode::OpReturn(_) => return InterpretResult::InterpretOk,
-                OpCode::OpConstant(_) => {
-                    let current_ip = self.ip;
-                    let constant = self.read_constant().expect(
+                OpCode::OpConstant(constants_index) => {
+                    let constant = self.read_constant(*constants_index).expect(
                         format!(
                             "Constant at IP {} did not return expected value!",
                             current_ip
