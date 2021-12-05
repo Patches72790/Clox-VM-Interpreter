@@ -12,7 +12,7 @@ impl std::clone::Clone for OpCode {
     fn clone(&self) -> Self {
         match self {
             OpCode::OpReturn(val) => OpCode::OpReturn(val.clone()),
-            OpCode::OpConstant(val) => OpCode::OpConstant(val.clone())
+            OpCode::OpConstant(val) => OpCode::OpConstant(val.clone()),
         }
     }
 }
@@ -24,10 +24,4 @@ impl std::fmt::Display for OpCode {
             OpCode::OpConstant(_) => write!(f, "OP_CONSTANT"),
         }
     }
-}
-
-#[derive(Debug)]
-struct Instruction {
-    op_code: OpCode,
-    offset: usize,
 }

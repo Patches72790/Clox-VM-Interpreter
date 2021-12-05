@@ -8,7 +8,7 @@ use crate::{Value, Values};
 #[derive(Debug)]
 pub struct Chunk {
     count: i32,
-    code: Vec<OpCode>,
+    pub code: Vec<OpCode>,
     constants: Values,
     lines: Vec<String>,
 }
