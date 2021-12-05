@@ -1,16 +1,14 @@
 use crate::Chunk;
 use crate::OpCode;
+use crate::Stack;
 use crate::Value;
+use crate::DEBUG_MODE;
+use crate::{InterpretError, InterpretOutcome, InterpretResult};
 
 pub struct VM {
     pub chunk: Chunk,
     ip: usize,
-}
-
-pub enum InterpretResult {
-    InterpretOk,
-    InterpretCompileError,
-    InterpretRuntimeError,
+    stack: Stack,
 }
 
 impl VM {
@@ -18,21 +16,21 @@ impl VM {
         VM {
             chunk: Chunk::new(),
             ip: 0,
+            stack: Stack::new(),
         }
     }
 
-    fn read_byte(&mut self) -> Option<&OpCode> {
-        if let Some(val) = self.chunk.code.get(self.ip) {
-            self.ip += 1;
-            Some(val)
+    fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
+        if let Some(val) = code.get(ip) {
+            Some(*val)
         } else {
             None
         }
     }
 
-    fn read_constant(&self, index: usize) -> Option<&Value> {
-        if let Some(val) = self.chunk.constants.values.get(index) {
-            Some(val)
+    fn read_constant(values: &Vec<Value>, index: usize) -> Option<Value> {
+        if let Some(val) = values.get(index) {
+            Some(*val)
         } else {
             None
         }
@@ -41,26 +39,42 @@ impl VM {
     fn run(&mut self) -> InterpretResult {
         loop {
             let current_ip = self.ip;
-            let instruction = self.read_byte().expect(
-                format!(
-                    "Bytecode at IP {} did not return expected value!",
-                    current_ip
-                )
-                .as_str(),
-            );
-
-            match instruction {
-                OpCode::OpReturn(_) => return InterpretResult::InterpretOk,
-                OpCode::OpConstant(constants_index) => {
-                    let constant = self.read_constant(*constants_index).expect(
+            self.ip += 1;
+            let instruction = match VM::read_byte(&self.chunk.code, current_ip) {
+                Some(instr) => instr,
+                None => {
+                    return Err(InterpretError::new(
                         format!(
-                            "Constant at IP {} did not return expected value!",
+                            "Bytecode at IP {} did not return expected value!",
                             current_ip
                         )
                         .as_str(),
-                    );
-                    println!("{}", constant);
-                } //_ => return InterpretResult::InterpretCompileError,
+                    ))
+                }
+            };
+
+            if DEBUG_MODE {
+                println!("Stack: {}", self.stack);
+                Chunk::disassemble_instruction(&instruction, current_ip, &self.chunk);
+            }
+
+            match instruction {
+                OpCode::OpReturn(_) => {
+                    println!("Popped: {}", self.stack.pop());
+                    return Ok(InterpretOutcome::InterpretOk);
+                }
+                OpCode::OpConstant(constants_index) => {
+                    let constant = VM::read_constant(&self.chunk.constants.values, constants_index)
+                        .expect(
+                            format!(
+                                "Constant at IP {} did not return expected value!",
+                                current_ip
+                            )
+                            .as_str(),
+                        );
+                    self.stack.push(constant);
+                    break Ok(InterpretOutcome::InterpretOk);
+                }
             }
         }
     }

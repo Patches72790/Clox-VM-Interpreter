@@ -4,7 +4,7 @@ pub struct Values {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Value {
     Number(f32),
 }
@@ -20,7 +20,7 @@ impl Values {
     /**
      * Writes a value to the values array and returns the index at which it
      * was added for use in the chunk instruction block.
-     */ 
+     */
     pub fn write_value(&mut self, value: Value) -> usize {
         self.values.push(value);
         self.count += 1;

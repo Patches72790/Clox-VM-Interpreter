@@ -1,4 +1,26 @@
-//pub type InterpretResultError<T> = std::result::Result<T, InterpretError>;
+pub type InterpretResult = std::result::Result<InterpretOutcome, InterpretError>;
+
+pub enum InterpretOutcome {
+    InterpretOk,
+    InterpretCompileError,
+    InterpretRuntimeError,
+}
 
 #[derive(Debug, Clone)]
-struct InterpretError;
+pub struct InterpretError {
+    message: String,
+}
+
+impl InterpretError {
+    pub fn new(msg: &str) -> InterpretError {
+        InterpretError {
+            message: msg.to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for InterpretError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
