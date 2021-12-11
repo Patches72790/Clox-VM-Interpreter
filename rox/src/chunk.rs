@@ -1,4 +1,5 @@
 use crate::OpCode;
+use crate::DEBUG_MODE;
 use crate::{Value, Values};
 
 ///The Chunk type corresponds to the basic block
@@ -116,13 +117,20 @@ impl Chunk {
         print!("{:0>4} ", offset);
 
         print!("{:>4} ", chunk.get_line(offset));
-        print!("Lines: {:?} ", chunk.lines);
 
+        if DEBUG_MODE {
+            print!("Lines: {:?} ", chunk.lines);
+        }
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
             OpCode::OpConstant(constants_index) => {
                 Chunk::constant_instruction("OP_CONSTANT", *constants_index, chunk)
             }
+            OpCode::OpNegate => Chunk::simple_instruction("OP_NEGATE"),
+            OpCode::OpAdd => Chunk::simple_instruction("OP_ADD"),
+            OpCode::OpSubtract => Chunk::simple_instruction("OP_SUBTRACT"),
+            OpCode::OpMultiply => Chunk::simple_instruction("OP_MULTIPLY"),
+            OpCode::OpDivide => Chunk::simple_instruction("OP_DIVIDE"),
         };
     }
 

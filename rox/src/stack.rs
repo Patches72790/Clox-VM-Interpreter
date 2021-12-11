@@ -2,7 +2,7 @@ use crate::Value;
 use crate::STACK_MAX;
 
 pub struct Stack {
-    values: Vec<Value>,
+    pub values: Vec<Value>,
 }
 
 impl Stack {
@@ -62,5 +62,15 @@ mod tests {
         s.pop();
         s.pop();
         s.pop();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_max_stack_panics() {
+        let mut s = Stack::new();
+
+        for i in 0..STACK_MAX + 1 {
+            s.push(Value::Number(i as f32));
+        }
     }
 }
