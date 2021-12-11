@@ -35,7 +35,7 @@ impl Chunk {
     ///automatically increased to account for the increase.
     ///
     pub fn write_chunk(&mut self, byte: OpCode, line: usize) {
-        self.code.push(byte.clone());
+        self.code.push(byte);
         Chunk::write_line_info(self, line, &byte);
         self.count += 1;
     }
@@ -77,6 +77,11 @@ impl Chunk {
         }
     }
 
+    ///
+    /// Searches in the lines array for the first element
+    /// that is greater than the index of the chunk byte
+    /// being searched for and panics if not found.
+    ///
     fn get_line(&self, index: usize) -> usize {
         let result = self
             .lines
@@ -103,12 +108,12 @@ impl Chunk {
     }
 
     ///
-    ///Convenience method for writing value to the constants Values array inside Chunk.
+    /// Convenience method for writing value to the constants Values array inside Chunk.
+    /// Then the method writes to the chunk with the provided index.
     ///
-    ///returns the index at which the value was added to the constants array
-    ///
-    pub fn add_constant(&mut self, value: Value) -> usize {
-        self.constants.write_value(value)
+    pub fn add_constant(&mut self, value: Value, line: usize) {
+        let index = self.constants.write_value(value);
+        self.write_chunk(OpCode::OpConstant(index), line);
     }
 
     ///Helper function for disassembling bytecode instructions instructions
@@ -158,10 +163,8 @@ mod tests {
         my_c.write_chunk(OpCode::OpReturn(8), 1);
         my_c.write_chunk(OpCode::OpReturn(22), 1);
         my_c.write_chunk(OpCode::OpReturn(55), 1);
-        let index = my_c.add_constant(Value::Number(69.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 2);
-        let index = my_c.add_constant(Value::Number(42.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 2);
+        my_c.add_constant(Value::Number(69.0), 2);
+        my_c.add_constant(Value::Number(42.0), 2);
 
         assert_eq!(my_c.count, 5);
         assert_eq!(my_c.lines.len(), 2);
@@ -171,12 +174,9 @@ mod tests {
     fn test_write_constants() {
         let mut my_c = Chunk::new();
 
-        let index = my_c.add_constant(Value::Number(69.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 1);
-        let index = my_c.add_constant(Value::Number(42.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 1);
-        let index = my_c.add_constant(Value::Number(35.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 1);
+        my_c.add_constant(Value::Number(69.0), 1);
+        my_c.add_constant(Value::Number(42.0), 1);
+        my_c.add_constant(Value::Number(35.0), 1);
 
         assert_eq!(my_c.constants.values.len(), 3);
     }
@@ -188,9 +188,7 @@ mod tests {
         my_c.write_chunk(OpCode::OpReturn(8), 1);
         my_c.write_chunk(OpCode::OpReturn(22), 1);
         my_c.write_chunk(OpCode::OpReturn(55), 1);
-        let index = my_c.add_constant(Value::Number(69.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 2);
-        let index = my_c.add_constant(Value::Number(42.0));
-        my_c.write_chunk(OpCode::OpConstant(index), 2);
+        my_c.add_constant(Value::Number(69.0), 2);
+        my_c.add_constant(Value::Number(42.0), 2);
     }
 }

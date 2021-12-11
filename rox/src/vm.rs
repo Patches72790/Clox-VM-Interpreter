@@ -120,8 +120,7 @@ mod tests {
     #[test]
     fn test_negate_op() {
         let mut vm = VM::new();
-        let index = vm.chunk.add_constant(Value::Number(45.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(45.0), 1);
         vm.chunk.write_chunk(OpCode::OpNegate, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(0), 1);
 
@@ -136,10 +135,8 @@ mod tests {
     #[test]
     fn test_add_binary_op() {
         let mut vm = VM::new();
-        let index = vm.chunk.add_constant(Value::Number(45.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
-        let index = vm.chunk.add_constant(Value::Number(15.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(45.0), 1);
+        vm.chunk.add_constant(Value::Number(15.0), 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(12), 1);
 
@@ -152,13 +149,10 @@ mod tests {
     #[test]
     fn test_mult_op_1() {
         let mut vm = VM::new();
-        let index = vm.chunk.add_constant(Value::Number(1.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
-        let index = vm.chunk.add_constant(Value::Number(2.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(1.0), 1);
+        vm.chunk.add_constant(Value::Number(2.0), 1);
         vm.chunk.write_chunk(OpCode::OpMultiply, 1);
-        let index = vm.chunk.add_constant(Value::Number(3.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(3.0), 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
@@ -173,12 +167,9 @@ mod tests {
     #[test]
     fn test_mult_op_2() {
         let mut vm = VM::new();
-        let index = vm.chunk.add_constant(Value::Number(1.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
-        let index = vm.chunk.add_constant(Value::Number(2.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
-        let index = vm.chunk.add_constant(Value::Number(3.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(1.0), 1);
+        vm.chunk.add_constant(Value::Number(2.0), 1);
+        vm.chunk.add_constant(Value::Number(3.0), 1);
 
         vm.chunk.write_chunk(OpCode::OpMultiply, 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
@@ -195,13 +186,10 @@ mod tests {
     #[test]
     fn test_sub() {
         let mut vm = VM::new();
-        let index = vm.chunk.add_constant(Value::Number(3.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
-        let index = vm.chunk.add_constant(Value::Number(2.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(3.0), 1);
+        vm.chunk.add_constant(Value::Number(2.0), 1);
         vm.chunk.write_chunk(OpCode::OpSubtract, 1);
-        let index = vm.chunk.add_constant(Value::Number(1.0));
-        vm.chunk.write_chunk(OpCode::OpConstant(index), 1);
+        vm.chunk.add_constant(Value::Number(1.0), 1);
         vm.chunk.write_chunk(OpCode::OpSubtract, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
@@ -210,5 +198,11 @@ mod tests {
         }
 
         assert_eq!(vm.stack.values[0], Value::Number(0.0));
+    }
+
+    #[test]
+    fn test_order_operations() {
+        let mut vm = VM::new();
+        vm.chunk.add_constant(Value::Number(1.0), 1);
     }
 }

@@ -1,9 +1,9 @@
 pub type InterpretResult = std::result::Result<InterpretOutcome, InterpretError>;
 
 pub enum InterpretOutcome {
-    InterpretOk,
-    InterpretCompileError,
-    InterpretRuntimeError,
+InterpretOk,
+InterpretCompileError(InterpretError),
+InterpretRuntimeError(InterpretError),
 }
 
 #[derive(Debug, Clone)]
