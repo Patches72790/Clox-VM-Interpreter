@@ -108,7 +108,7 @@ impl VM {
         }
     }
 
-    pub fn interpret(&mut self) -> InterpretResult {
+    pub fn interpret(&mut self, line: &String) -> InterpretResult {
         self.run()
     }
 }
@@ -124,11 +124,11 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpNegate, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(0), 1);
 
-        vm.interpret().unwrap();
+        vm.interpret(&"".to_string()).unwrap();
         assert_eq!(vm.stack.values.len(), 1);
-        vm.interpret().unwrap();
+        vm.interpret(&"".to_string()).unwrap();
         assert_eq!(vm.stack.values.len(), 1);
-        vm.interpret().unwrap();
+        vm.interpret(&"".to_string()).unwrap();
         assert_eq!(vm.stack.values.len(), 0);
     }
 
@@ -140,9 +140,9 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(12), 1);
 
-        vm.interpret().unwrap();
-        vm.interpret().unwrap();
-        vm.interpret().unwrap();
+        vm.interpret(&"".to_string()).unwrap();
+        vm.interpret(&"".to_string()).unwrap();
+        vm.interpret(&"".to_string()).unwrap();
         assert_eq!(vm.stack.values[0], Value::Number(60.0));
     }
 
@@ -157,7 +157,7 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
         for _ in 0..vm.chunk.code.len() - 1 {
-            vm.interpret().unwrap();
+            vm.interpret(&"".to_string()).unwrap();
         }
 
         assert_eq!(vm.stack.values[0], Value::Number(5.0));
@@ -176,7 +176,7 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
         for _ in 0..vm.chunk.code.len() - 1 {
-            vm.interpret().unwrap();
+            vm.interpret(&"".to_string()).unwrap();
         }
 
         assert_eq!(vm.stack.values[0], Value::Number(7.0));
@@ -194,7 +194,7 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
         for _ in 0..vm.chunk.code.len() - 1 {
-            vm.interpret().unwrap();
+            vm.interpret(&"".to_string()).unwrap();
         }
 
         assert_eq!(vm.stack.values[0], Value::Number(0.0));
