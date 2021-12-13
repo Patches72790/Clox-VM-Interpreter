@@ -1,14 +1,14 @@
 pub type InterpretResult = std::result::Result<InterpretOutcome, InterpretError>;
 
 pub enum InterpretOutcome {
-InterpretOk,
-InterpretCompileError(InterpretError),
-InterpretRuntimeError(InterpretError),
+    InterpretOk,
+    InterpretCompileError(InterpretError),
+    InterpretRuntimeError(InterpretError),
 }
 
 #[derive(Debug, Clone)]
 pub struct InterpretError {
-    message: String,
+    pub message: String,
 }
 
 impl InterpretError {
