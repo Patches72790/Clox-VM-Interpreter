@@ -4,19 +4,20 @@ use crate::Stack;
 use crate::Value;
 use crate::DEBUG_MODE;
 use crate::{InterpretError, InterpretOutcome, InterpretResult};
+use std::cell::RefCell;
 
 pub struct VM {
     pub chunk: Chunk,
-    ip: usize,
-    stack: Stack,
+    ip: RefCell<usize>,
+    stack: RefCell<Stack>,
 }
 
 impl VM {
     pub fn new() -> VM {
         VM {
             chunk: Chunk::new(),
-            ip: 0,
-            stack: Stack::new(),
+            ip: RefCell::new(0),
+            stack: RefCell::new(Stack::new()),
         }
     }
 
@@ -36,10 +37,13 @@ impl VM {
         }
     }
 
-    fn run(&mut self) -> InterpretResult {
+    fn run(&self) -> InterpretResult {
         loop {
-            let current_ip = self.ip;
-            self.ip += 1;
+            // grab current IP
+            let current_ip = self.ip.borrow().clone();
+            println!("Current IP: {}", current_ip);
+            // increment the IP to next
+            let _ = *self.ip.borrow_mut() + 1;
             let instruction = match VM::read_byte(&self.chunk.code, current_ip) {
                 Some(instr) => instr,
                 None => {
@@ -54,13 +58,13 @@ impl VM {
             };
 
             if DEBUG_MODE {
-                println!("Stack: {}", self.stack);
+                println!("Stack: {}", *self.stack.borrow());
                 Chunk::disassemble_instruction(&instruction, current_ip, &self.chunk);
             }
 
             match instruction {
                 OpCode::OpReturn(_) => {
-                    println!("Popped: {}", self.stack.pop());
+                    println!("Popped: {}", self.stack.borrow_mut().pop());
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpConstant(constants_index) => {
@@ -72,43 +76,43 @@ impl VM {
                             )
                             .as_str(),
                         );
-                    self.stack.push(constant);
+                    self.stack.borrow_mut().push(constant);
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpNegate => {
-                    let val = self.stack.pop();
-                    self.stack.push(-val);
+                    let val = self.stack.borrow_mut().pop();
+                    self.stack.borrow_mut().push(-val);
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpAdd => {
-                    let b = self.stack.pop(); // rhs operand
-                    let a = self.stack.pop(); // lhs operand
-                    self.stack.push(a + b); // push result
+                    let b = self.stack.borrow_mut().pop(); // rhs operand
+                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    self.stack.borrow_mut().push(a + b); // push result
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpSubtract => {
-                    let b = self.stack.pop(); // rhs operand
-                    let a = self.stack.pop(); // lhs operand
-                    self.stack.push(a - b); // push result
+                    let b = self.stack.borrow_mut().pop(); // rhs operand
+                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    self.stack.borrow_mut().push(a - b); // push result
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpMultiply => {
-                    let b = self.stack.pop(); // rhs operand
-                    let a = self.stack.pop(); // lhs operand
-                    self.stack.push(a * b); // push result
+                    let b = self.stack.borrow_mut().pop(); // rhs operand
+                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    self.stack.borrow_mut().push(a * b); // push result
                     return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpDivide => {
-                    let b = self.stack.pop(); // rhs operand
-                    let a = self.stack.pop(); // lhs operand
-                    self.stack.push(a / b); // push result
+                    let b = self.stack.borrow_mut().pop(); // rhs operand
+                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    self.stack.borrow_mut().push(a / b); // push result
                     return Ok(InterpretOutcome::InterpretOk);
                 }
             }
         }
     }
 
-    pub fn interpret(&mut self, line: &String) -> InterpretResult {
+    pub fn interpret(&self, line: &String) -> InterpretResult {
         self.run()
     }
 }

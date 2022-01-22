@@ -4,7 +4,7 @@ use std::io::Write;
 use std::{fs, io};
 
 pub struct Config {
-    pub vm: VM,
+    vm: VM,
     filename: Option<String>,
     pub is_repl: bool,
 }
@@ -48,7 +48,7 @@ impl Config {
         }
     }
 
-    pub fn run_file(&mut self) -> Result<(), ConfigError> {
+    pub fn run_file(&self) -> Result<(), ConfigError> {
         // grab filename path if it exists
         let file = match &self.filename {
             Some(val) => val,
