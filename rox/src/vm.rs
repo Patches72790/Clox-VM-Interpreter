@@ -1,5 +1,7 @@
 use crate::Chunk;
+use crate::Compiler;
 use crate::OpCode;
+use crate::Scanner;
 use crate::Stack;
 use crate::Value;
 use crate::DEBUG_MODE;
@@ -10,6 +12,8 @@ pub struct VM {
     pub chunk: Chunk,
     ip: RefCell<usize>,
     stack: RefCell<Stack>,
+    scanner: Scanner,
+    compiler: Compiler,
 }
 
 impl VM {
@@ -18,6 +22,8 @@ impl VM {
             chunk: Chunk::new(),
             ip: RefCell::new(0),
             stack: RefCell::new(Stack::new()),
+            scanner: Scanner::new(),
+            compiler: Compiler::new(),
         }
     }
 
@@ -111,7 +117,9 @@ impl VM {
         }
     }
 
-    pub fn interpret(&self, line: &String) -> InterpretResult {
+    pub fn interpret(&self, source: &str) -> InterpretResult {
+        self.scanner.scan_tokens(source);
+        self.compiler.compile();
         self.run()
     }
 }

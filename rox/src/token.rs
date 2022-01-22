@@ -1,56 +1,77 @@
-use std::rc::Rc;
-
-struct Token {
+#[derive(Debug)]
+pub struct Token {
     token_type: TokenType,
-    lexeme: Rc<String>,
-    length: usize,
     line: usize,
+    column: usize,
 }
 
-enum TokenType {
-    // Single-character tokens.
-    TOKEN_LEFT_PAREN,
-    TOKEN_RIGHT_PAREN,
-    TOKEN_LEFT_BRACE,
-    TOKEN_RIGHT_BRACE,
-    TOKEN_COMMA,
-    TOKEN_DOT,
-    TOKEN_MINUS,
-    TOKEN_PLUS,
-    TOKEN_SEMICOLON,
-    TOKEN_SLASH,
-    TOKEN_STAR,
-    // One or two character tokens.
-    TOKEN_BANG,
-    TOKEN_BANG_EQUAL,
-    TOKEN_EQUAL,
-    TOKEN_EQUAL_EQUAL,
-    TOKEN_GREATER,
-    TOKEN_GREATER_EQUAL,
-    TOKEN_LESS,
-    TOKEN_LESS_EQUAL,
-    // Literals.
-    TOKEN_IDENTIFIER,
-    TOKEN_STRING,
-    TOKEN_NUMBER,
-    // Keywords.
-    TOKEN_AND,
-    TOKEN_CLASS,
-    TOKEN_ELSE,
-    TOKEN_FALSE,
-    TOKEN_FOR,
-    TOKEN_FUN,
-    TOKEN_IF,
-    TOKEN_NIL,
-    TOKEN_OR,
-    TOKEN_PRINT,
-    TOKEN_RETURN,
-    TOKEN_SUPER,
-    TOKEN_THIS,
-    TOKEN_TRUE,
-    TOKEN_VAR,
-    TOKEN_WHILE,
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let my_type = &self.token_type;
+        let line = &self.line;
+        let col = &self.column;
+        write!(
+            f,
+            "<Token lexeme: type: {my_type:?}, line: {line}, col: {col}>"
+        )
+    }
+}
 
-    TOKEN_ERROR,
-    TOKEN_EOF,
+impl Token {
+    pub fn new(token_type: TokenType, line: usize, column: usize) -> Token {
+        Token {
+            token_type,
+            line,
+            column,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TokenType {
+    // Single-character tokens.
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    Semicolon,
+    Slash,
+    Star,
+    // One or two character tokens.
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    // Literals.
+    Identifier(String),
+    StringLiteral(String),
+    Number(f32),
+    // Keywords.
+    And,
+    Class,
+    Else,
+    False,
+    For,
+    Fun,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
+
+    Error(String),
+    EOF,
 }
