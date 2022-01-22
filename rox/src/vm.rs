@@ -41,9 +41,8 @@ impl VM {
         loop {
             // grab current IP
             let current_ip = self.ip.borrow().clone();
-            println!("Current IP: {}", current_ip);
-            // increment the IP to next
-            let _ = *self.ip.borrow_mut() + 1;
+            // increment the IP
+            *self.ip.borrow_mut() += 1;
             let instruction = match VM::read_byte(&self.chunk.code, current_ip) {
                 Some(instr) => instr,
                 None => {
@@ -129,11 +128,11 @@ mod tests {
         vm.chunk.write_chunk(OpCode::OpReturn(0), 1);
 
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.values.len(), 1);
+        assert_eq!(vm.stack.borrow().values.len(), 1);
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.values.len(), 1);
+        assert_eq!(vm.stack.borrow().values.len(), 1);
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.values.len(), 0);
+        assert_eq!(vm.stack.borrow().values.len(), 0);
     }
 
     #[test]
@@ -147,7 +146,7 @@ mod tests {
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.values[0], Value::Number(60.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(60.0));
     }
 
     #[test]
@@ -164,7 +163,7 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.values[0], Value::Number(5.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(5.0));
     }
 
     /// Test 1 + 2 * 3 == 7
@@ -183,7 +182,7 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.values[0], Value::Number(7.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(7.0));
     }
 
     /// Test 3 - 2 - 1 == 0
@@ -201,7 +200,7 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.values[0], Value::Number(0.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(0.0));
     }
 
     #[test]

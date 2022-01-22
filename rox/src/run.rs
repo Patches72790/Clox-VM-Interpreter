@@ -84,7 +84,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn repl(&mut self) {
+    pub fn repl(&self) {
         let mut buffer = String::new();
 
         loop {

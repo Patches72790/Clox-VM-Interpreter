@@ -120,7 +120,6 @@ impl Chunk {
     ///in the bytecode vector for Chunk.
     pub fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
         print!("{:0>4} ", offset);
-
         print!("{:>4} ", chunk.get_line(offset));
 
         if DEBUG_MODE {

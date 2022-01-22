@@ -1,10 +1,13 @@
 mod chunk;
+mod compiler;
 mod error;
 mod opcode;
 mod run;
+mod scanner;
 mod stack;
 mod value;
 mod vm;
+mod token;
 
 pub use chunk::*;
 pub use error::*;
