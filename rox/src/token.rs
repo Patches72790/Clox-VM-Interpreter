@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq)]
 pub struct Token {
     token_type: TokenType,
     line: usize,
@@ -19,6 +19,12 @@ impl std::fmt::Display for Token {
     }
 }
 
+impl std::cmp::PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        self.token_type == other.token_type
+    }
+}
+
 impl Token {
     pub fn new(token_type: TokenType, line: usize, column: usize) -> Token {
         Token {
@@ -29,8 +35,10 @@ impl Token {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct RoxNumber(pub f32);
+
+impl std::cmp::Eq for RoxNumber {}
 
 impl std::fmt::Display for RoxNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -45,7 +53,7 @@ impl Deref for RoxNumber {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,

@@ -13,7 +13,7 @@ impl Scanner {
         Scanner {}
     }
 
-    fn is_at_end(line_chars: &mut Peeker) -> bool {
+    fn _is_at_end(line_chars: &mut Peeker) -> bool {
         match line_chars.peek() {
             Some(_) => false,
             None => true,
@@ -52,6 +52,7 @@ impl Scanner {
         }
         TokenType::StringLiteral(result)
     }
+
     fn number(peeker: &mut Peeker, ch: &char) -> TokenType {
         let mut string_of_num = ch.to_string();
         while let Some((_, c)) = peeker.next_if(|(_, c)| c.is_numeric() || *c == '.') {
@@ -150,4 +151,43 @@ impl Scanner {
     fn scan_token(&self, token_type: TokenType, line: usize, column: usize) -> Token {
         Token::new(token_type, line, column)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_binary_ops() {
+        let scanner = Scanner::new();
+        let source = String::from("() {} , ;");
+
+        let tokens = scanner.scan_tokens(&source);
+
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(TokenType::LeftParen, 1, 1),
+                Token::new(TokenType::RightParen, 1, 2),
+                Token::new(TokenType::LeftBrace, 1, 4),
+                Token::new(TokenType::RightBrace, 1, 5),
+                Token::new(TokenType::Comma, 1, 7),
+                Token::new(TokenType::Semicolon, 1, 9),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_string_literal() {}
+
+    #[test]
+    fn test_number_literal() {}
+
+    #[test]
+    fn test_identifier() {}
+
+    #[test]
+    fn test_keywords() {}
+
+    #[test]
+    fn test_error_tokens() {}
 }
