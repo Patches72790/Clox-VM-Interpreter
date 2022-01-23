@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 #[derive(Debug)]
 pub struct Token {
     token_type: TokenType,
@@ -28,6 +30,16 @@ impl Token {
 }
 
 #[derive(Debug)]
+pub struct RoxNumber(f32);
+
+impl Deref for RoxNumber {
+    type Target = f32;
+    fn deref(&self) -> &f32 {
+        &self.0
+    }
+}
+
+#[derive(Debug)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -53,7 +65,7 @@ pub enum TokenType {
     // Literals.
     Identifier(String),
     StringLiteral(String),
-    Number(f32),
+    Number(RoxNumber),
     // Keywords.
     And,
     Class,

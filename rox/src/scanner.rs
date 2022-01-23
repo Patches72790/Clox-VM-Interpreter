@@ -2,7 +2,9 @@ use crate::{
     token::{Token, TokenType},
     DEBUG_MODE,
 };
-use std::{iter::Peekable, rc::Rc, str::CharIndices};
+use std::{iter::Peekable, str::CharIndices};
+
+type Peeker<'a> = Peekable<CharIndices<'a>>;
 
 pub struct Scanner {}
 
@@ -11,7 +13,7 @@ impl Scanner {
         Scanner {}
     }
 
-    fn is_at_end(line_chars: &mut Peekable<CharIndices>) -> bool {
+    fn is_at_end(line_chars: &mut Peeker) -> bool {
         match line_chars.peek() {
             Some(_) => false,
             None => true,
@@ -19,7 +21,7 @@ impl Scanner {
     }
 
     fn check_next(
-        line_chars: &mut Peekable<CharIndices>,
+        line_chars: &mut Peeker,
         check: char,
         first: TokenType,
         second: TokenType,
@@ -32,8 +34,23 @@ impl Scanner {
         _t_type
     }
 
-    fn string() -> TokenType {
-        todo!("Need to finish string literals!")
+    fn string(peeker: &mut Peeker) -> TokenType {
+        let mut found_closing_quotation = false;
+        let result: String = peeker
+            .take_while(|(_, c)| {
+                if *c == '"' {
+                    found_closing_quotation = true;
+                    return false;
+                }
+                true
+            })
+            .map(|(_, c)| c)
+            .collect::<String>();
+
+        if !found_closing_quotation {
+            return TokenType::Error(String::from("Unterminated string literal"));
+        }
+        TokenType::StringLiteral(result)
     }
     fn number() -> TokenType {
         todo!("Need to finish number literals!")
@@ -47,7 +64,7 @@ impl Scanner {
         let mut tokens: Vec<Token> = Vec::new();
 
         for (line_num, line) in source.lines().enumerate() {
-            let mut line_chars = line.char_indices().peekable();
+            let mut line_chars: Peeker = line.char_indices().peekable();
             while let Some((char_num, ch)) = line_chars.next() {
                 let token_type = match ch {
                     '(' => TokenType::LeftParen,
@@ -98,7 +115,7 @@ impl Scanner {
                             TokenType::Slash
                         }
                     }
-                    '"' => Scanner::string(),
+                    '"' => Scanner::string(&mut line_chars),
                     '0'..='9' => Scanner::number(),
                     'a'..='z' | 'A'..='Z' => Scanner::identifier(),
                     _ => TokenType::Error(String::from("Unexpected char read from source")),
