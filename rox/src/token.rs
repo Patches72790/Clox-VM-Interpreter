@@ -30,7 +30,13 @@ impl Token {
 }
 
 #[derive(Debug)]
-pub struct RoxNumber(f32);
+pub struct RoxNumber(pub f32);
+
+impl std::fmt::Display for RoxNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl Deref for RoxNumber {
     type Target = f32;

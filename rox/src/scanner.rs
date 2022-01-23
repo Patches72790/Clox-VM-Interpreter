@@ -1,6 +1,6 @@
 use crate::{
     token::{Token, TokenType},
-    DEBUG_MODE,
+    RoxNumber, DEBUG_MODE,
 };
 use std::{iter::Peekable, str::CharIndices};
 
@@ -52,11 +52,19 @@ impl Scanner {
         }
         TokenType::StringLiteral(result)
     }
-    fn number() -> TokenType {
-        todo!("Need to finish number literals!")
+    fn number(peeker: &mut Peeker, ch: &char) -> TokenType {
+        let mut string_of_num = ch.to_string();
+        while let Some((_, c)) = peeker.next_if(|(_, c)| c.is_numeric() || *c == '.') {
+            string_of_num.push(c)
+        }
+
+        match string_of_num.parse::<f32>() {
+            Ok(val) => TokenType::Number(RoxNumber(val)),
+            Err(_) => TokenType::Error(format!("Error parsing number {}", string_of_num)),
+        }
     }
 
-    fn identifier() -> TokenType {
+    fn identifier(peeker: &mut Peeker, first_letter: &char) -> TokenType {
         todo!("Need to finish identifiers and keywords!")
     }
 
@@ -72,7 +80,16 @@ impl Scanner {
                     '{' => TokenType::LeftBrace,
                     '}' => TokenType::RightBrace,
                     ',' => TokenType::Comma,
-                    '.' => TokenType::Dot,
+                    '.' => {
+                        if line_chars.peek().unwrap_or(&(0, ' ')).1.is_numeric() {
+                            while let Some((_, _)) = line_chars.next_if(|(_, c)| c.is_numeric()) {}
+                            TokenType::Error(String::from(
+                                "Cannot begin a number in Rox with a dot.",
+                            ))
+                        } else {
+                            TokenType::Dot
+                        }
+                    }
                     '-' => TokenType::Minus,
                     '+' => TokenType::Plus,
                     ';' => TokenType::Semicolon,
@@ -116,8 +133,8 @@ impl Scanner {
                         }
                     }
                     '"' => Scanner::string(&mut line_chars),
-                    '0'..='9' => Scanner::number(),
-                    'a'..='z' | 'A'..='Z' => Scanner::identifier(),
+                    '0'..='9' => Scanner::number(&mut line_chars, &ch),
+                    'a'..='z' | 'A'..='Z' => Scanner::identifier(&mut line_chars, &ch),
                     _ => TokenType::Error(String::from("Unexpected char read from source")),
                 };
 
