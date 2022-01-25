@@ -38,6 +38,50 @@ impl Token {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct RoxNumber(pub f32);
 
+impl std::cmp::PartialOrd for RoxNumber {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl std::ops::Add<RoxNumber> for RoxNumber {
+    type Output = Self;
+
+    fn add(self, rhs: RoxNumber) -> Self::Output {
+        RoxNumber(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Neg for RoxNumber {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        RoxNumber(-self.0)
+    }
+}
+impl std::ops::Sub<RoxNumber> for RoxNumber {
+    type Output = Self;
+
+    fn sub(self, rhs: RoxNumber) -> Self::Output {
+        RoxNumber(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Mul<RoxNumber> for RoxNumber {
+    type Output = Self;
+
+    fn mul(self, rhs: RoxNumber) -> Self::Output {
+        RoxNumber(self.0 * rhs.0)
+    }
+}
+
+impl std::ops::Div<RoxNumber> for RoxNumber {
+    type Output = Self;
+
+    fn div(self, rhs: RoxNumber) -> Self::Output {
+        RoxNumber(self.0 / rhs.0)
+    }
+}
+
 impl std::cmp::Eq for RoxNumber {}
 
 impl std::fmt::Display for RoxNumber {

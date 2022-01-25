@@ -1,3 +1,4 @@
+use crate::RoxNumber;
 use std::ops;
 
 #[derive(Debug)]
@@ -8,7 +9,7 @@ pub struct Values {
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Value {
-    Number(f32),
+    Number(RoxNumber),
 }
 
 impl Values {
