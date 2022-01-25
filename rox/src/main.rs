@@ -2,7 +2,7 @@ use rox::Config;
 use std::env::args;
 
 fn main() {
-    let mut config = Config::new(&mut args()).unwrap_or_else(|err| {
+    let config = Config::new(&mut args()).unwrap_or_else(|err| {
         eprintln!(
             "\n<<<Error with command line arguments>>>\n\nExiting with message:\n{}",
             err
