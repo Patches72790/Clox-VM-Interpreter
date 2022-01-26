@@ -101,7 +101,7 @@ impl Config {
             }
 
             if let Err(val) = self.vm.interpret(&buffer) {
-                println!("\n<<<Error in VM interpreter>>>\n\nMessage: {}", val);
+                println!("\n<<<Error in Rox REPL>>>\n\nMessage: {}", val);
             };
 
             buffer.clear();

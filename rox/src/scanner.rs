@@ -1,16 +1,21 @@
 use crate::{
     token::{Token, TokenType},
-    RoxNumber, DEBUG_MODE,
+    RoxNumber, TokenStream, DEBUG_MODE,
 };
+use std::cell::RefCell;
 use std::{iter::Peekable, str::CharIndices};
 
 type Peeker<'a> = Peekable<CharIndices<'a>>;
 
-pub struct Scanner {}
+pub struct Scanner {
+    had_error: RefCell<bool>,
+}
 
 impl Scanner {
     pub fn new() -> Scanner {
-        Scanner {}
+        Scanner {
+            had_error: RefCell::new(false),
+        }
     }
 
     fn _is_at_end(line_chars: &mut Peeker) -> bool {
@@ -132,7 +137,7 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&self, source: &str) -> Vec<Token> {
+    pub fn scan_tokens(&self, source: &str) -> TokenStream {
         let mut tokens: Vec<Token> = Vec::new();
         let mut num_lines = 1;
 
@@ -203,6 +208,11 @@ impl Scanner {
                     _ => TokenType::Error(String::from("Unexpected char read from source")),
                 };
 
+                match token_type {
+                    TokenType::Error(_) => *self.had_error.borrow_mut() = true,
+                    _ => (),
+                }
+
                 tokens.push(self.scan_token(token_type, line_num + 1, char_num + 1));
             }
             num_lines += 1;
@@ -214,7 +224,11 @@ impl Scanner {
         if DEBUG_MODE {
             tokens.iter().for_each(|token| println!("Token: {}", token));
         }
-        tokens
+        TokenStream::new(tokens)
+    }
+
+    pub fn had_error(&self) -> bool {
+        *self.had_error.borrow()
     }
 
     fn scan_token(&self, token_type: TokenType, line: usize, column: usize) -> Token {
@@ -233,7 +247,7 @@ mod tests {
         let tokens = scanner.scan_tokens(&source);
 
         assert_eq!(
-            tokens,
+            *tokens,
             vec![
                 Token::new(TokenType::LeftParen, 1, 1),
                 Token::new(TokenType::RightParen, 1, 2),
@@ -241,6 +255,7 @@ mod tests {
                 Token::new(TokenType::RightBrace, 1, 5),
                 Token::new(TokenType::Comma, 1, 7),
                 Token::new(TokenType::Semicolon, 1, 9),
+                Token::new(TokenType::EOF, 2, 1),
             ]
         );
     }
