@@ -118,8 +118,9 @@ impl VM {
     }
 
     pub fn interpret(&self, source: &str) -> InterpretResult {
-        self.scanner.scan_tokens(source);
-        self.compiler.compile();
+        for token in self.scanner.scan_tokens(source).iter() {
+            self.compiler.compile(&token);
+        }
         self.run()
     }
 }

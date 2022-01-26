@@ -1,3 +1,4 @@
+use crate::Token;
 use std::cell::RefCell;
 
 pub struct Compiler {
@@ -19,9 +20,7 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&self) {
-        for each_fn in self.func_table.borrow_mut().iter_mut() {
-            each_fn();
-        }
+    pub fn compile(&self, token: &Token) {
+        println!("Compiler has a token: {}", token);
     }
 }

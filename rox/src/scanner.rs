@@ -66,11 +66,75 @@ impl Scanner {
     }
 
     fn identifier(peeker: &mut Peeker, first_letter: &char) -> TokenType {
-        todo!("Need to finish identifiers and keywords!")
+        let mut string_accum = first_letter.to_string();
+        while let Some((_, c)) = peeker.next_if(|(_, c)| c.is_ascii_alphanumeric() || *c == '_') {
+            string_accum.push(c);
+        }
+
+        Scanner::find_identifier_type(&string_accum)
+    }
+
+    fn find_identifier_type(id: &str) -> TokenType {
+        let mut id_chars = id.char_indices().peekable();
+        match id_chars.next().unwrap_or((0, '!')) {
+            (.., 'a') => Scanner::check_keyword(&mut id_chars, 2, "nd", id, TokenType::And),
+            (.., 'c') => Scanner::check_keyword(&mut id_chars, 4, "lass", id, TokenType::Class),
+            (.., 'e') => Scanner::check_keyword(&mut id_chars, 3, "lse", id, TokenType::Else),
+            (.., 'i') => Scanner::check_keyword(&mut id_chars, 1, "f", id, TokenType::If),
+            (.., 'n') => Scanner::check_keyword(&mut id_chars, 2, "il", id, TokenType::Nil),
+            (.., 'o') => Scanner::check_keyword(&mut id_chars, 1, "r", id, TokenType::Or),
+            (.., 'p') => Scanner::check_keyword(&mut id_chars, 4, "rint", id, TokenType::Print),
+            (.., 'r') => Scanner::check_keyword(&mut id_chars, 5, "eturn", id, TokenType::Return),
+            (.., 's') => Scanner::check_keyword(&mut id_chars, 4, "uper", id, TokenType::Super),
+            (.., 'v') => Scanner::check_keyword(&mut id_chars, 2, "ar", id, TokenType::Var),
+            (.., 'w') => Scanner::check_keyword(&mut id_chars, 4, "hile", id, TokenType::While),
+            (.., 'f') => match id_chars.next().unwrap_or((0, '!')) {
+                (.., 'a') => Scanner::check_keyword(&mut id_chars, 3, "lse", id, TokenType::False),
+                (.., 'o') => Scanner::check_keyword(&mut id_chars, 1, "r", id, TokenType::For),
+                (.., 'u') => Scanner::check_keyword(&mut id_chars, 1, "n", id, TokenType::Fun),
+                (.., '!') => TokenType::Error(
+                    "Error grabbing next char after 'f' in scanning identifier.".to_string(),
+                ),
+                _ => TokenType::Identifier(id.to_string()),
+            },
+            (.., 't') => match id_chars.next().unwrap_or((0, '!')) {
+                (.., 'h') => Scanner::check_keyword(&mut id_chars, 2, "is", id, TokenType::This),
+                (.., 'r') => Scanner::check_keyword(&mut id_chars, 2, "ue", id, TokenType::True),
+                (.., '!') => TokenType::Error(
+                    "Error grabbing next char after 't' in scanning identifier".to_string(),
+                ),
+                _ => TokenType::Identifier(id.to_string()),
+            },
+            (.., '!') => {
+                TokenType::Error("Error grabbing first char in scanning identifer".to_string())
+            }
+            _ => TokenType::Identifier(id.to_string()),
+        }
+    }
+
+    fn check_keyword(
+        char_peeker: &mut Peeker,
+        length: usize,
+        suffix: &str,
+        original_str: &str,
+        t_type: TokenType,
+    ) -> TokenType {
+        let result = char_peeker
+            .take(length)
+            .map(|(_, c)| c.to_string())
+            .collect::<String>();
+
+        println!("Result: {}", result);
+        if result == suffix && char_peeker.next() == None {
+            t_type
+        } else {
+            TokenType::Identifier(original_str.to_string())
+        }
     }
 
     pub fn scan_tokens(&self, source: &str) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
+        let mut num_lines = 1;
 
         for (line_num, line) in source.lines().enumerate() {
             let mut line_chars: Peeker = line.char_indices().peekable();
@@ -84,7 +148,7 @@ impl Scanner {
                     ';' => TokenType::Semicolon,
                     '.' => {
                         if line_chars.peek().unwrap_or(&(0, ' ')).1.is_numeric() {
-                            while let Some((_, _)) = line_chars.next_if(|(_, c)| c.is_numeric()) {}
+                            while let Some(_) = line_chars.next_if(|(_, c)| c.is_numeric()) {}
                             TokenType::Error(String::from(
                                 "Cannot begin a number in Rox with a dot.",
                             ))
@@ -141,7 +205,12 @@ impl Scanner {
 
                 tokens.push(self.scan_token(token_type, line_num + 1, char_num + 1));
             }
+            num_lines += 1;
         }
+
+        // add token EOF sentinel for signaling end of scanner token stream
+        tokens.push(Token::new(TokenType::EOF, num_lines, 1));
+
         if DEBUG_MODE {
             tokens.iter().for_each(|token| println!("Token: {}", token));
         }
