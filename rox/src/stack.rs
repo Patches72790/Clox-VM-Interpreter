@@ -39,13 +39,14 @@ impl std::fmt::Display for Stack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RoxNumber;
 
     #[test]
     fn test_push() {
         let mut s = Stack::new();
-        s.push(Value::Number(6.0));
-        s.push(Value::Number(5.0));
-        s.push(Value::Number(4.0));
+        s.push(Value::Number(RoxNumber(6.0)));
+        s.push(Value::Number(RoxNumber(5.0)));
+        s.push(Value::Number(RoxNumber(4.0)));
 
         assert_eq!(s.to_string(), "[6, 5, 4]");
     }
@@ -54,9 +55,9 @@ mod tests {
     #[should_panic]
     fn test_pop() {
         let mut s = Stack::new();
-        s.push(Value::Number(6.0));
-        s.push(Value::Number(5.0));
-        s.push(Value::Number(4.0));
+        s.push(Value::Number(RoxNumber(6.0)));
+        s.push(Value::Number(RoxNumber(5.0)));
+        s.push(Value::Number(RoxNumber(4.0)));
 
         s.pop();
         s.pop();
@@ -70,7 +71,7 @@ mod tests {
         let mut s = Stack::new();
 
         for i in 0..STACK_MAX + 1 {
-            s.push(Value::Number(i as f32));
+            s.push(Value::Number(RoxNumber(i as f32)));
         }
     }
 }

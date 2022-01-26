@@ -155,6 +155,7 @@ impl Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RoxNumber;
     #[test]
     fn test_write_chunk() {
         let mut my_c = Chunk::new();
@@ -162,8 +163,8 @@ mod tests {
         my_c.write_chunk(OpCode::OpReturn(8), 1);
         my_c.write_chunk(OpCode::OpReturn(22), 1);
         my_c.write_chunk(OpCode::OpReturn(55), 1);
-        my_c.add_constant(Value::Number(69.0), 2);
-        my_c.add_constant(Value::Number(42.0), 2);
+        my_c.add_constant(Value::Number(RoxNumber(69.0)), 2);
+        my_c.add_constant(Value::Number(RoxNumber(42.0)), 2);
 
         assert_eq!(my_c.count, 5);
         assert_eq!(my_c.lines.len(), 2);
@@ -173,9 +174,9 @@ mod tests {
     fn test_write_constants() {
         let mut my_c = Chunk::new();
 
-        my_c.add_constant(Value::Number(69.0), 1);
-        my_c.add_constant(Value::Number(42.0), 1);
-        my_c.add_constant(Value::Number(35.0), 1);
+        my_c.add_constant(Value::Number(RoxNumber(69.0)), 1);
+        my_c.add_constant(Value::Number(RoxNumber(42.0)), 1);
+        my_c.add_constant(Value::Number(RoxNumber(35.0)), 1);
 
         assert_eq!(my_c.constants.values.len(), 3);
     }
@@ -187,7 +188,7 @@ mod tests {
         my_c.write_chunk(OpCode::OpReturn(8), 1);
         my_c.write_chunk(OpCode::OpReturn(22), 1);
         my_c.write_chunk(OpCode::OpReturn(55), 1);
-        my_c.add_constant(Value::Number(69.0), 2);
-        my_c.add_constant(Value::Number(42.0), 2);
+        my_c.add_constant(Value::Number(RoxNumber(69.0)), 2);
+        my_c.add_constant(Value::Number(RoxNumber(42.0)), 2);
     }
 }

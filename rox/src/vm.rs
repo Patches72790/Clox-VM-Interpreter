@@ -128,10 +128,11 @@ impl VM {
 mod tests {
     use super::Value;
     use super::*;
+    use crate::RoxNumber;
     #[test]
     fn test_negate_op() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(45.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(45.0)), 1);
         vm.chunk.write_chunk(OpCode::OpNegate, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(0), 1);
 
@@ -146,24 +147,24 @@ mod tests {
     #[test]
     fn test_add_binary_op() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(45.0), 1);
-        vm.chunk.add_constant(Value::Number(15.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(45.0)), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(15.0)), 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(12), 1);
 
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(60.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(60.0)));
     }
 
     #[test]
     fn test_mult_op_1() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(1.0), 1);
-        vm.chunk.add_constant(Value::Number(2.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(1.0)), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(2.0)), 1);
         vm.chunk.write_chunk(OpCode::OpMultiply, 1);
-        vm.chunk.add_constant(Value::Number(3.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(3.0)), 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
@@ -171,16 +172,16 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(5.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(5.0)));
     }
 
     /// Test 1 + 2 * 3 == 7
     #[test]
     fn test_mult_op_2() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(1.0), 1);
-        vm.chunk.add_constant(Value::Number(2.0), 1);
-        vm.chunk.add_constant(Value::Number(3.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(1.0)), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(2.0)), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(3.0)), 1);
 
         vm.chunk.write_chunk(OpCode::OpMultiply, 1);
         vm.chunk.write_chunk(OpCode::OpAdd, 1);
@@ -190,17 +191,17 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(7.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(7.0)));
     }
 
     /// Test 3 - 2 - 1 == 0
     #[test]
     fn test_sub() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(3.0), 1);
-        vm.chunk.add_constant(Value::Number(2.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(3.0)), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(2.0)), 1);
         vm.chunk.write_chunk(OpCode::OpSubtract, 1);
-        vm.chunk.add_constant(Value::Number(1.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(1.0)), 1);
         vm.chunk.write_chunk(OpCode::OpSubtract, 1);
         vm.chunk.write_chunk(OpCode::OpReturn(1), 1);
 
@@ -208,12 +209,12 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(0.0));
+        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(0.0)));
     }
 
     #[test]
     fn test_order_operations() {
         let mut vm = VM::new();
-        vm.chunk.add_constant(Value::Number(1.0), 1);
+        vm.chunk.add_constant(Value::Number(RoxNumber(1.0)), 1);
     }
 }

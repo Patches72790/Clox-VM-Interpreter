@@ -81,6 +81,7 @@ impl Scanner {
                     '{' => TokenType::LeftBrace,
                     '}' => TokenType::RightBrace,
                     ',' => TokenType::Comma,
+                    ';' => TokenType::Semicolon,
                     '.' => {
                         if line_chars.peek().unwrap_or(&(0, ' ')).1.is_numeric() {
                             while let Some((_, _)) = line_chars.next_if(|(_, c)| c.is_numeric()) {}
@@ -93,7 +94,6 @@ impl Scanner {
                     }
                     '-' => TokenType::Minus,
                     '+' => TokenType::Plus,
-                    ';' => TokenType::Semicolon,
                     '*' => TokenType::Star,
                     '!' => Scanner::check_next(
                         &mut line_chars,
