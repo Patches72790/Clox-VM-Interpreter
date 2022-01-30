@@ -129,7 +129,6 @@ impl Scanner {
             .map(|(_, c)| c.to_string())
             .collect::<String>();
 
-        println!("Result: {}", result);
         if result == suffix && char_peeker.next() == None {
             t_type
         } else {

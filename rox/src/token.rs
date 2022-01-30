@@ -11,25 +11,25 @@ impl Deref for TokenStream {
     }
 }
 
-impl TokenStream {
+impl<'a> TokenStream {
     pub fn new(tokens: Vec<Token>) -> TokenStream {
         TokenStream(tokens)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, Token> {
+    pub fn iter(&self) -> std::slice::Iter<Token> {
         self.0.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, Token> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<Token> {
         self.0.iter_mut()
     }
 }
 
 #[derive(Debug, Clone, Eq)]
 pub struct Token {
-    token_type: TokenType,
-    line: usize,
-    column: usize,
+    pub token_type: TokenType,
+    pub line: usize,
+    pub column: usize,
 }
 
 impl std::fmt::Display for Token {

@@ -2,6 +2,7 @@ mod chunk;
 mod compiler;
 mod error;
 mod opcode;
+mod parser;
 mod run;
 mod scanner;
 mod stack;
@@ -10,6 +11,7 @@ mod value;
 mod vm;
 
 pub use chunk::*;
+pub use compiler::*;
 pub use error::*;
 pub use opcode::OpCode;
 pub use run::*;
@@ -18,7 +20,7 @@ pub use stack::*;
 pub use token::*;
 pub use value::*;
 pub use vm::*;
-pub use compiler::*;
+pub use parser::*;
 
 pub static DEBUG_MODE: bool = true;
 pub const STACK_MAX: i32 = 256;
