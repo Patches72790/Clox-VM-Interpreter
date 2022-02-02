@@ -29,13 +29,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rox"
-version = "0.1.0"
-dependencies = [
- "precedence_macro",
-]
-
-[[package]]
 name = "syn"
 version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
