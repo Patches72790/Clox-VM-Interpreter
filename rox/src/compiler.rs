@@ -1,4 +1,6 @@
-use crate::{Chunk, OpCode, Parser, RoxNumber, Token, TokenStream, TokenType, Value, DEBUG_MODE};
+use crate::{
+    Chunk, OpCode, Parser, Precedence, RoxNumber, Token, TokenStream, TokenType, Value, DEBUG_MODE,
+};
 use std::cell::RefCell;
 use std::iter::Peekable;
 use std::rc::Rc;
@@ -60,9 +62,9 @@ impl<'a> Compiler<'a> {
         self.emit_return();
     }
 
-    fn parse(&self) {
+    fn parse(&self, precedence: Precedence) {
         while let Some(token) = self.tokens.borrow_mut().next() {
-            println!("Parsed token: {token}");
+            println!("Parsed token: {token} with precedence {:?}", *precedence);
             match token.token_type {
                 TokenType::Number(num) => self.number(num, token.line),
                 _ => (),
@@ -73,7 +75,12 @@ impl<'a> Compiler<'a> {
     pub fn compile(&self) -> bool {
         // tokens already scanned
         // jump straight into parsing
-        self.parse();
+        self.parse(Precedence::PrecPrimary);
+
+        let first = Precedence::PrecAnd;
+        let second = Precedence::PrecTerm;
+
+        println!("{:?} has greater precedence than {:?}: {}", second, first, first < second);
 
         if DEBUG_MODE {
             for token in self.tokens.borrow_mut().next() {
