@@ -54,14 +54,18 @@ impl Precedence {
     pub fn get_next(&self) -> &Self {
         match self {
             Precedence::PrecNone => &Precedence::PrecAssign,
-            _ => &Precedence::PrecNone,
+            Precedence::PrecAssign => &Precedence::PrecOr,
+            Precedence::PrecOr => &Precedence::PrecAnd,
+            Precedence::PrecAnd => &Precedence::PrecEquality,
+            Precedence::PrecEquality => &Precedence::PrecComparison,
+            Precedence::PrecComparison => &Precedence::PrecTerm,
+            Precedence::PrecTerm => &Precedence::PrecFactor,
+            Precedence::PrecFactor => &Precedence::PrecUnary,
+            Precedence::PrecUnary => &Precedence::PrecCall,
+            Precedence::PrecCall => &Precedence::PrecPrimary,
+            Precedence::PrecPrimary => panic!("Error, no precedence higher than PrePrimary"),
         }
     }
-}
-
-trait Nextable {
-    type Target;
-    fn get_next(&self) -> &Self::Target;
 }
 
 impl std::ops::Deref for Precedence {
@@ -88,16 +92,16 @@ impl std::fmt::Display for Precedence {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Precedence::PrecNone => write!(f, "PrecNone"),
-            Precedence::PrecAssign => &*PrecAssign,
-            Precedence::PrecOr => &*PrecOr,
-            Precedence::PrecAnd => &*PrecAnd,
-            Precedence::PrecEquality => &*PrecEquality,
-            Precedence::PrecComparison => &*PrecComparison,
-            Precedence::PrecTerm => &*PrecTerm,
-            Precedence::PrecFactor => &*PrecFactor,
-            Precedence::PrecUnary => &*PrecUnary,
-            Precedence::PrecCall => &*PrecCall,
-            Precedence::PrecPrimary => &*PrecPrimary,
+            Precedence::PrecAssign => write!(f, "PrecAssign"),
+            Precedence::PrecOr => write!(f, "PrecOr"),
+            Precedence::PrecAnd => write!(f, "PrecAnd"),
+            Precedence::PrecEquality => write!(f, "PrecEquality"),
+            Precedence::PrecComparison => write!(f, "PrecComparison"),
+            Precedence::PrecTerm => write!(f, "PrecTerm"),
+            Precedence::PrecFactor => write!(f, "PrecFactor"),
+            Precedence::PrecUnary => write!(f, "PrecUnary"),
+            Precedence::PrecCall => write!(f, "PrecCall"),
+            Precedence::PrecPrimary => write!(f, "PrecPrimary"),
         }
     }
 }

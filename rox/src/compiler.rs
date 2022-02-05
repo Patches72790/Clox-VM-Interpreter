@@ -34,7 +34,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn get_rule(&'a self, t_type: TokenType) -> ParseRule {
+    fn get_rule(&'a self, t_type: &TokenType) -> ParseRule {
         match t_type {
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
@@ -57,14 +57,14 @@ impl<'a> Compiler<'a> {
         };
 
         if DEBUG_MODE {
-            println!("Parsed Token: {}", next_token);
+            println!("Advanced to Token: {}", next_token);
         }
 
         // first token parsed
         if let None = *self.previous.borrow() {
             *self.current.borrow_mut() = Some(next_token);
             if let TokenType::Error(msg) = &next_token.token_type {
-                self.error(next_token, &msg);
+                self.error_at(next_token, &msg);
             }
         } else {
             // set the previous token with current
@@ -72,12 +72,13 @@ impl<'a> Compiler<'a> {
             match &*current_tok {
                 Some(tok) => {
                     *(self.previous.borrow_mut()) = Some(*tok);
+                    *(self.current.borrow_mut()) = Some(next_token);
                 }
-                None => *(self.current.borrow_mut()) = Some(next_token),
+                None => panic!("Error current token was None in advance!"),
             }
             // check for error
             if let TokenType::Error(msg) = &next_token.token_type {
-                self.error(next_token, &msg);
+                self.error_at(next_token, &msg);
             }
         }
     }
@@ -96,7 +97,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn error_at_current_token(&self, message: &str) {
-        self.error(
+        self.error_at(
             self.current
                 .borrow()
                 .expect("Error borrowing current token"),
@@ -104,7 +105,16 @@ impl<'a> Compiler<'a> {
         );
     }
 
-    fn error(&self, token: &Token, message: &str) {
+    fn error(&self, message: &str) {
+        self.error_at(
+            self.previous
+                .borrow()
+                .expect("Error borrowing previous token"),
+            message,
+        );
+    }
+
+    fn error_at(&self, token: &Token, message: &str) {
         *self.had_error.borrow_mut() = true;
         eprintln!(
             "Error at [{}, {}] with message: {}",
@@ -113,7 +123,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn expression(&'a self) {
-        self.parse(Precedence::PrecAssign);
+        self.parse(&Precedence::PrecAssign);
     }
 
     fn number(&self, num: RoxNumber, line: usize) {
@@ -141,7 +151,7 @@ impl<'a> Compiler<'a> {
             .expect("Error borrowing previous token in unary");
 
         // compile operand
-        self.parse(Precedence::PrecUnary);
+        self.parse(&Precedence::PrecUnary);
 
         // emit operator opcode
         match operator_type.token_type {
@@ -153,15 +163,19 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn binary(&self) {
+    fn binary(&'a self) {
         let operator_type = self
             .previous
             .borrow()
             .expect("Error borrowing previous token in binary");
 
         // get parse rule
-        // parse precedence with rule
+        let rule = self.get_rule(&operator_type.token_type);
 
+        // parse rule with next highest precedence (term -> factor, factor -> unary)
+        self.parse(rule.precedence.get_next());
+
+        // emit opcode for token type
         match operator_type.token_type {
             TokenType::Plus => self.emit_byte(OpCode::OpAdd),
             TokenType::Minus => self.emit_byte(OpCode::OpSubtract),
@@ -186,20 +200,45 @@ impl<'a> Compiler<'a> {
         self.emit_return();
     }
 
-    fn parse(&'a self, precedence: Precedence) {
-        let my_rule = self.get_rule(TokenType::Minus);
-        let prec = my_rule.precedence;
-        let n = prec.get_next();
-        println!("Minus precedence: {}, next precedence: {}", prec, n);
+    fn parse(&'a self, precedence: &Precedence) {
+        println!(
+            "previous: {:?} --- current: {:?}",
+            self.previous, self.current
+        );
 
-        while let Some(token) = self.tokens.borrow_mut().next() {
-            println!("Parsed token: {token} with precedence {:?}", *precedence);
-            match token.token_type {
-                TokenType::Number(num) => self.number(num, token.line),
-                TokenType::EOF => break,
-                _ => println!("Parsed unimplemented token: {}", token),
-            }
+        self.advance();
+        let prefix_fn = self
+            .get_rule(
+                &self
+                    .previous
+                    .borrow()
+                    .expect("Error borrowing previous token in parser")
+                    .token_type,
+            )
+            .prefix_fn;
+
+        if let Some(p_fn) = prefix_fn {
+            p_fn();
+        } else {
+            self.error("Expect expression.");
         }
+
+        while precedence
+            <= &self
+                .get_rule(&self.current.borrow().unwrap().token_type)
+                .precedence
+        {
+            todo!()
+        }
+
+        //        while let Some(token) = self.tokens.borrow_mut().next() {
+        //            println!("Parsed token: {token} with precedence {:?}", *precedence);
+        //            match token.token_type {
+        //                TokenType::Number(num) => self.number(num, token.line),
+        //                TokenType::EOF => break,
+        //                _ => println!("Parsed unimplemented token: {}", token),
+        //            }
+        //        }
     }
 
     pub fn compile(&'a self) -> bool {
