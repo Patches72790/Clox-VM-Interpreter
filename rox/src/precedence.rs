@@ -50,12 +50,44 @@ pub enum Precedence {
     PrecPrimary,
 }
 
+impl Precedence {
+    pub fn get_next(&self) -> &Self {
+        match self {
+            Precedence::PrecNone => &Precedence::PrecAssign,
+            _ => &Precedence::PrecNone,
+        }
+    }
+}
+
+trait Nextable {
+    type Target;
+    fn get_next(&self) -> &Self::Target;
+}
+
 impl std::ops::Deref for Precedence {
     type Target = u8;
 
     fn deref(&self) -> &Self::Target {
         match self {
             Precedence::PrecNone => &*PrecNone,
+            Precedence::PrecAssign => &*PrecAssign,
+            Precedence::PrecOr => &*PrecOr,
+            Precedence::PrecAnd => &*PrecAnd,
+            Precedence::PrecEquality => &*PrecEquality,
+            Precedence::PrecComparison => &*PrecComparison,
+            Precedence::PrecTerm => &*PrecTerm,
+            Precedence::PrecFactor => &*PrecFactor,
+            Precedence::PrecUnary => &*PrecUnary,
+            Precedence::PrecCall => &*PrecCall,
+            Precedence::PrecPrimary => &*PrecPrimary,
+        }
+    }
+}
+
+impl std::fmt::Display for Precedence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Precedence::PrecNone => write!(f, "PrecNone"),
             Precedence::PrecAssign => &*PrecAssign,
             Precedence::PrecOr => &*PrecOr,
             Precedence::PrecAnd => &*PrecAnd,

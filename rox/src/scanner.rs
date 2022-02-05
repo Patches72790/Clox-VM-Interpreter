@@ -221,7 +221,9 @@ impl Scanner {
         tokens.push(Token::new(TokenType::EOF, num_lines, 1));
 
         if DEBUG_MODE {
-            tokens.iter().for_each(|token| println!("Token: {}", token));
+            tokens
+                .iter()
+                .for_each(|token| println!("Scanned Token: {}", token));
         }
         TokenStream::new(tokens)
     }

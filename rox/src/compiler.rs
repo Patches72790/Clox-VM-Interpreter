@@ -1,28 +1,25 @@
-use crate::{
-    Chunk, OpCode, Parser, Precedence, RoxNumber, Token, TokenStream, TokenType, Value, DEBUG_MODE,
-};
+use crate::{Chunk, OpCode, Precedence, RoxNumber, Token, TokenType, Value, DEBUG_MODE};
 use std::cell::RefCell;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
 
 pub struct Compiler<'a> {
-    //    func_table: RefCell<[Box<dyn FnMut()>; 2]>,
     chunk: Rc<RefCell<Chunk>>,
     tokens: RefCell<Peekable<Iter<'a, Token>>>,
-    func_table: RefCell<[fn(); 2]>,
-    pub had_error: bool,
-    pub panic_mode: bool,
+    //    func_table: RefCell<[fn(); 2]>,
+    previous: RefCell<Option<&'a Token>>,
+    current: RefCell<Option<&'a Token>>,
+    pub had_error: RefCell<bool>,
+    pub panic_mode: RefCell<bool>,
 }
 
-static FUNC_TABLE: [fn(); 2] = [some_func, other_func];
+type ParseFn<'a> = Box<dyn FnOnce() + 'a>;
 
-fn some_func() {
-    println!("I'm a compiler function!");
-}
-
-fn other_func() {
-    println!("I'm another compiler function!");
+struct ParseRule<'a> {
+    precedence: Precedence,
+    infix_fn: Option<ParseFn<'a>>,
+    prefix_fn: Option<ParseFn<'a>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -30,13 +27,94 @@ impl<'a> Compiler<'a> {
         Compiler {
             chunk,
             tokens,
-            func_table: RefCell::new(FUNC_TABLE),
-            had_error: false,
-            panic_mode: false,
+            had_error: RefCell::new(false),
+            panic_mode: RefCell::new(false),
+            previous: RefCell::new(None),
+            current: RefCell::new(None),
         }
     }
 
-    fn expression(&self) {}
+    fn get_rule(&'a self, t_type: TokenType) -> ParseRule {
+        match t_type {
+            TokenType::Plus => ParseRule {
+                precedence: Precedence::PrecTerm,
+                infix_fn: Some(Box::new(|| self.binary())),
+                prefix_fn: None,
+            },
+            TokenType::Minus => ParseRule {
+                precedence: Precedence::PrecTerm,
+                infix_fn: Some(Box::new(|| self.binary())),
+                prefix_fn: Some(Box::new(|| self.unary())),
+            },
+            _ => todo!("Unimplemented token type: {:?}", t_type),
+        }
+    }
+
+    fn advance(&self) {
+        let next_token = match self.tokens.borrow_mut().next() {
+            Some(tok) => tok,
+            None => panic!("Error getting next token in advance!"),
+        };
+
+        if DEBUG_MODE {
+            println!("Parsed Token: {}", next_token);
+        }
+
+        // first token parsed
+        if let None = *self.previous.borrow() {
+            *self.current.borrow_mut() = Some(next_token);
+            if let TokenType::Error(msg) = &next_token.token_type {
+                self.error(next_token, &msg);
+            }
+        } else {
+            // set the previous token with current
+            let current_tok = self.current.borrow();
+            match &*current_tok {
+                Some(tok) => {
+                    *(self.previous.borrow_mut()) = Some(*tok);
+                }
+                None => *(self.current.borrow_mut()) = Some(next_token),
+            }
+            // check for error
+            if let TokenType::Error(msg) = &next_token.token_type {
+                self.error(next_token, &msg);
+            }
+        }
+    }
+
+    fn consume(&self, t_type: TokenType, message: &str) {
+        let current_tok = self
+            .current
+            .borrow()
+            .expect("Error consuming current token!");
+        if current_tok.token_type == t_type {
+            self.advance();
+            return;
+        }
+
+        self.error_at_current_token(message);
+    }
+
+    fn error_at_current_token(&self, message: &str) {
+        self.error(
+            self.current
+                .borrow()
+                .expect("Error borrowing current token"),
+            message,
+        );
+    }
+
+    fn error(&self, token: &Token, message: &str) {
+        *self.had_error.borrow_mut() = true;
+        eprintln!(
+            "Error at [{}, {}] with message: {}",
+            token.line, token.column, message
+        );
+    }
+
+    fn expression(&'a self) {
+        self.parse(Precedence::PrecAssign);
+    }
 
     fn number(&self, num: RoxNumber, line: usize) {
         self.emit_constant(Value::Number(num), line);
@@ -48,6 +126,52 @@ impl<'a> Compiler<'a> {
     /// function for such a task.
     fn emit_constant(&self, value: Value, line: usize) {
         self.chunk.borrow_mut().add_constant(value, line);
+    }
+
+    fn grouping(&'a self) {
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after expression.");
+    }
+
+    fn unary(&'a self) {
+        // find type
+        let operator_type = self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token in unary");
+
+        // compile operand
+        self.parse(Precedence::PrecUnary);
+
+        // emit operator opcode
+        match operator_type.token_type {
+            TokenType::Minus => self.emit_byte(OpCode::OpNegate),
+            _ => panic!(
+                "Error parsing unary expression. Unexpected token type: {}",
+                operator_type
+            ),
+        }
+    }
+
+    fn binary(&self) {
+        let operator_type = self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token in binary");
+
+        // get parse rule
+        // parse precedence with rule
+
+        match operator_type.token_type {
+            TokenType::Plus => self.emit_byte(OpCode::OpAdd),
+            TokenType::Minus => self.emit_byte(OpCode::OpSubtract),
+            TokenType::Star => self.emit_byte(OpCode::OpMultiply),
+            TokenType::Slash => self.emit_byte(OpCode::OpDivide),
+            _ => panic!(
+                "Error parsing binary expression. Unexpected token type: {}",
+                operator_type
+            ),
+        }
     }
 
     fn emit_byte(&self, byte: OpCode) {
@@ -62,33 +186,32 @@ impl<'a> Compiler<'a> {
         self.emit_return();
     }
 
-    fn parse(&self, precedence: Precedence) {
+    fn parse(&'a self, precedence: Precedence) {
+        let my_rule = self.get_rule(TokenType::Minus);
+        let prec = my_rule.precedence;
+        let n = prec.get_next();
+        println!("Minus precedence: {}, next precedence: {}", prec, n);
+
         while let Some(token) = self.tokens.borrow_mut().next() {
             println!("Parsed token: {token} with precedence {:?}", *precedence);
             match token.token_type {
                 TokenType::Number(num) => self.number(num, token.line),
-                _ => (),
+                TokenType::EOF => break,
+                _ => println!("Parsed unimplemented token: {}", token),
             }
         }
     }
 
-    pub fn compile(&self) -> bool {
-        // tokens already scanned
-        // jump straight into parsing
-        self.parse(Precedence::PrecPrimary);
+    pub fn compile(&'a self) -> bool {
+        // prime pump with token to parse
+        self.advance();
 
-        let first = Precedence::PrecAnd;
-        let second = Precedence::PrecTerm;
+        // parse expression first with lowest precedence
+        self.expression();
 
-        println!("{:?} has greater precedence than {:?}: {}", second, first, first < second);
+        // emit final byte code
+        //self.end_compiler();
 
-        if DEBUG_MODE {
-            for token in self.tokens.borrow_mut().next() {
-                println!("Compiler has a token: {}", token);
-            }
-        }
-
-        //        self.end_compiler();
-        !self.had_error
+        !*self.had_error.borrow()
     }
 }
