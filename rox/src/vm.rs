@@ -27,6 +27,11 @@ impl VM {
         }
     }
 
+    pub fn reset(&mut self) {
+        *(self.ip.borrow_mut()) = 0;
+        self.chunk.borrow_mut().reset();
+    }
+
     fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
         if let Some(val) = code.get(ip) {
             Some(*val)
@@ -49,16 +54,15 @@ impl VM {
             let current_ip = self.ip.borrow().clone();
             // increment the IP
             *self.ip.borrow_mut() += 1;
+
+            // read next instruction
             let instruction = match VM::read_byte(&self.chunk.borrow().code, current_ip) {
                 Some(instr) => instr,
                 None => {
-                    return Err(InterpretError::new(
-                        format!(
-                            "Bytecode at IP {} did not return expected value!",
-                            current_ip
-                        )
-                        .as_str(),
-                    ))
+                    if DEBUG_MODE {
+                        println!("Finished executing opcodes, finishing...");
+                    }
+                    return Ok(InterpretOutcome::InterpretOk);
                 }
             };
 
@@ -69,7 +73,12 @@ impl VM {
 
             match instruction {
                 OpCode::OpReturn(_) => {
-                    println!("Popped: {}", self.stack.borrow_mut().pop());
+                    let val = self.stack.borrow_mut().pop();
+                    if DEBUG_MODE {
+                        println!("Popped: {}", val);
+                    } else {
+                        println!("{}", val);
+                    }
                 }
                 OpCode::OpConstant(constants_index) => {
                     let constant =
@@ -86,7 +95,6 @@ impl VM {
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop();
                     self.stack.borrow_mut().push(-val);
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpAdd => {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
@@ -97,19 +105,16 @@ impl VM {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
                     let a = self.stack.borrow_mut().pop(); // lhs operand
                     self.stack.borrow_mut().push(a - b); // push result
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpMultiply => {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
                     let a = self.stack.borrow_mut().pop(); // lhs operand
                     self.stack.borrow_mut().push(a * b); // push result
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpDivide => {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
                     let a = self.stack.borrow_mut().pop(); // lhs operand
                     self.stack.borrow_mut().push(a / b); // push result
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
             }
         }

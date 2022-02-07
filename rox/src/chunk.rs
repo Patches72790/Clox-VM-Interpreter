@@ -28,6 +28,13 @@ impl Chunk {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.count = 0;
+        self.code = vec![];
+        self.constants = Values::new();
+        self.lines = vec![];
+    }
+
     ///
     ///Writes the specified byte to the instruction code vector
     ///contained within this Chunk and increments the count.

@@ -84,7 +84,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn repl(&self) {
+    pub fn repl(&mut self) {
         let mut buffer = String::new();
 
         loop {
@@ -103,6 +103,8 @@ impl Config {
             if let Err(val) = self.vm.interpret(&buffer) {
                 println!("\n<<<Error in Rox REPL>>>\n\nMessage: {}", val);
             };
+
+            self.vm.reset();
 
             buffer.clear();
         }

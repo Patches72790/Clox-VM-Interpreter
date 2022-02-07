@@ -74,6 +74,16 @@ impl<'a> Compiler<'a> {
                 prefix_fn: Some(Box::new(|| self.number(*num, 1))),
                 infix_fn: None,
             },
+            TokenType::LeftParen => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.grouping())),
+                infix_fn: None
+            },
+            TokenType::RightParen => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.grouping())),
+                infix_fn: None
+            },
             TokenType::Semicolon => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: None,
