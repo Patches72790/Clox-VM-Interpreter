@@ -70,7 +70,6 @@ impl VM {
             match instruction {
                 OpCode::OpReturn(_) => {
                     println!("Popped: {}", self.stack.borrow_mut().pop());
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpConstant(constants_index) => {
                     let constant =
@@ -83,7 +82,6 @@ impl VM {
                                 .as_str(),
                             );
                     self.stack.borrow_mut().push(constant);
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop();
@@ -94,7 +92,6 @@ impl VM {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
                     let a = self.stack.borrow_mut().pop(); // lhs operand
                     self.stack.borrow_mut().push(a + b); // push result
-                    return Ok(InterpretOutcome::InterpretOk);
                 }
                 OpCode::OpSubtract => {
                     let b = self.stack.borrow_mut().pop(); // rhs operand
