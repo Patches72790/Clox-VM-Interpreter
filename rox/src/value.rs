@@ -10,6 +10,8 @@ pub struct Values {
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Value {
     Number(RoxNumber),
+    Boolean(bool),
+    Nil,
 }
 
 impl Values {
@@ -35,11 +37,11 @@ impl ops::Neg for Value {
     type Output = Value;
 
     fn neg(self) -> Self::Output {
-        let num = match self {
-            Value::Number(num) => num,
-        };
-
-        Value::Number(-num)
+        match self {
+            Value::Number(num) => Value::Number(-num),
+            Value::Boolean(_) => Value::Boolean(false),
+            Value::Nil => Value::Nil,
+        }
     }
 }
 
