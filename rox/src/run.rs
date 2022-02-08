@@ -66,6 +66,10 @@ impl Config {
             }
         };
 
+        if DEBUG_MODE {
+            println!("Read contents of file:\n{file_contents}");
+        }
+
         // interpret the file
         match self.vm.interpret(&file_contents) {
             Err(msg) => return Err(ConfigError::new(msg.message)),

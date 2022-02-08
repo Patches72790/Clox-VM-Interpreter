@@ -21,20 +21,6 @@ struct ParseRule<'a> {
     prefix_fn: Option<ParseFn<'a>>,
 }
 
-impl<'a> ParseRule<'a> {
-    pub fn new(
-        precedence: Precedence,
-        infix_fn: Option<ParseFn<'a>>,
-        prefix_fn: Option<ParseFn<'a>>,
-    ) -> ParseRule<'a> {
-        ParseRule {
-            precedence,
-            infix_fn,
-            prefix_fn,
-        }
-    }
-}
-
 impl<'a> Compiler<'a> {
     pub fn new(chunk: Rc<RefCell<Chunk>>, tokens: RefCell<Peekable<Iter<'a, Token>>>) -> Compiler {
         Compiler {
@@ -77,12 +63,12 @@ impl<'a> Compiler<'a> {
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: Some(Box::new(|| self.grouping())),
-                infix_fn: None
+                infix_fn: None,
             },
             TokenType::RightParen => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.grouping())),
-                infix_fn: None
+                prefix_fn: None,
+                infix_fn: None,
             },
             TokenType::Semicolon => ParseRule {
                 precedence: Precedence::PrecNone,
@@ -250,6 +236,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn parse(&'a self, precedence: &Precedence) {
+        // advance cursor
         self.advance();
         let prefix_fn = self
             .get_rule(
@@ -261,6 +248,7 @@ impl<'a> Compiler<'a> {
             )
             .prefix_fn;
 
+        // call prefix parsing function if present
         if let Some(p_fn) = prefix_fn {
             p_fn();
         } else {
@@ -268,11 +256,13 @@ impl<'a> Compiler<'a> {
             return;
         }
 
+        // check that current precedence is less than current_token's precedence
         while precedence
             <= &self
                 .get_rule(&self.current.borrow().unwrap().token_type)
                 .precedence
         {
+            // advance cursor and execute infix parsing function
             self.advance();
             let infix_fn = self
                 .get_rule(
