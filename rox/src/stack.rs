@@ -17,8 +17,12 @@ impl Stack {
         self.values.push(value);
     }
 
-    pub fn pop(&mut self) -> Value {
-        self.values.pop().expect("Cannot pop from empty VM stack!")
+    pub fn pop(&mut self) -> Result<Value, &'static str> {
+        match self.values.pop() {
+            Some(val) => Ok(val),
+            None => Err("Cannot pop from empty VM stack!"),
+        }
+        //self.values.pop().expect("Cannot pop from empty VM stack!")
     }
 }
 

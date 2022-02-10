@@ -93,14 +93,15 @@ impl VM {
                     self.stack.borrow_mut().push(constant);
                 }
                 OpCode::OpNegate => {
-                    let val = match self.stack.borrow_mut().pop() {
-                        Value::Number(num) => Value::Number(num),
-                        _ => {
-                            return Err(InterpretError::RuntimeError(
-                                "Cannot negate non-number type.".to_string(),
-                            ))
-                        }
-                    };
+                    let val = self.stack.borrow_mut().pop()?;
+//                    let val = match self.stack.borrow_mut().pop() {
+//                        Value::Number(num) => Value::Number(num),
+//                        _ => {
+//                            return Err(InterpretError::RuntimeError(
+//                                "Cannot negate non-number type.".to_string(),
+//                            ))
+//                        }
+//                    };
                     self.stack.borrow_mut().push(-val);
                 }
                 OpCode::OpAdd => {
