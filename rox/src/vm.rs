@@ -5,7 +5,7 @@ use crate::Scanner;
 use crate::Stack;
 use crate::Value;
 use crate::DEBUG_MODE;
-use crate::{InterpretError, InterpretOutcome, InterpretResult};
+use crate::{InterpretError, InterpretOk, InterpretResult};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -62,7 +62,7 @@ impl VM {
                     if DEBUG_MODE {
                         println!("Finished executing opcodes, finishing...");
                     }
-                    return Ok(InterpretOutcome::InterpretOk);
+                    return Ok(InterpretOk);
                 }
             };
 
@@ -93,7 +93,14 @@ impl VM {
                     self.stack.borrow_mut().push(constant);
                 }
                 OpCode::OpNegate => {
-                    let val = self.stack.borrow_mut().pop();
+                    let val = match self.stack.borrow_mut().pop() {
+                        Value::Number(num) => Value::Number(num),
+                        _ => {
+                            return Err(InterpretError::RuntimeError(
+                                "Cannot negate non-number type.".to_string(),
+                            ))
+                        }
+                    };
                     self.stack.borrow_mut().push(-val);
                 }
                 OpCode::OpAdd => {
@@ -131,8 +138,8 @@ impl VM {
 
         // parse and compile tokens into opcodes
         if !compiler.compile() {
-            return Ok(InterpretOutcome::InterpretCompileError(
-                InterpretError::new("Interpreter Compiler Error"),
+            return Err(InterpretError::CompileError(
+                "Compiler error in VM interpreter.".to_string(),
             ));
         }
 

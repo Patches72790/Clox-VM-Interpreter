@@ -1,4 +1,5 @@
 use crate::vm::VM;
+use crate::InterpretError;
 use crate::DEBUG_MODE;
 use std::io::Write;
 use std::{fs, io};
@@ -12,6 +13,16 @@ pub struct Config {
 #[derive(Debug)]
 pub struct ConfigError {
     msg: String,
+}
+
+impl From<InterpretError> for ConfigError {
+    fn from(error: InterpretError) -> Self {
+        let msg = match error {
+            InterpretError::CompileError(msg) => msg,
+            InterpretError::RuntimeError(msg) => msg,
+        };
+        Self { msg }
+    }
 }
 
 impl ConfigError {
@@ -71,20 +82,7 @@ impl Config {
         }
 
         // interpret the file
-        match self.vm.interpret(&file_contents) {
-            Err(msg) => return Err(ConfigError::new(msg.message)),
-            Ok(outcome) => match outcome {
-                crate::InterpretOutcome::InterpretOk => (),
-                crate::InterpretOutcome::InterpretCompileError(msg) => {
-                    eprintln!("Compiler error with message:\n{}", msg);
-                    return Err(ConfigError::new(String::from("Compiler error")));
-                }
-                crate::InterpretOutcome::InterpretRuntimeError(msg) => {
-                    eprintln!("Runtime error with message:\n{}", msg);
-                    return Err(ConfigError::new(String::from("Runtime error")));
-                }
-            },
-        };
+        self.vm.interpret(&file_contents)?;
         Ok(())
     }
 
