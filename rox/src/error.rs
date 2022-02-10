@@ -8,6 +8,12 @@ pub enum InterpretError {
     RuntimeError(String),
 }
 
+impl From<&str> for InterpretError {
+    fn from(msg: &str) -> Self {
+        InterpretError::RuntimeError(msg.to_string())
+    }
+}
+
 impl std::fmt::Display for InterpretError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

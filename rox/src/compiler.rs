@@ -94,7 +94,7 @@ impl<'a> Compiler<'a> {
         loop {
             let next_token = match self.tokens.borrow_mut().next() {
                 Some(tok) => tok,
-                None => panic!("Error getting next token in advance!"),
+                None => return //  panic!("Error getting next token in advance!"),
             };
 
             if DEBUG_MODE {

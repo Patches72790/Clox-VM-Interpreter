@@ -73,7 +73,7 @@ impl VM {
 
             match instruction {
                 OpCode::OpReturn(_) => {
-                    let val = self.stack.borrow_mut().pop();
+                    let val = self.stack.borrow_mut().pop()?;
                     if DEBUG_MODE {
                         println!("Popped: {}", val);
                     } else {
@@ -94,38 +94,69 @@ impl VM {
                 }
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop()?;
-//                    let val = match self.stack.borrow_mut().pop() {
-//                        Value::Number(num) => Value::Number(num),
-//                        _ => {
-//                            return Err(InterpretError::RuntimeError(
-//                                "Cannot negate non-number type.".to_string(),
-//                            ))
-//                        }
-//                    };
+
+                    // check for non number types
+                    let val = match val {
+                        Value::Number(num) => Value::Number(num),
+                        _ => {
+                            return Err(InterpretError::RuntimeError(
+                                "Cannot negate non-number type.".to_string(),
+                            ))
+                        }
+                    };
                     self.stack.borrow_mut().push(-val);
                 }
                 OpCode::OpAdd => {
-                    let b = self.stack.borrow_mut().pop(); // rhs operand
-                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a + b); // push result
                 }
                 OpCode::OpSubtract => {
-                    let b = self.stack.borrow_mut().pop(); // rhs operand
-                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a - b); // push result
                 }
                 OpCode::OpMultiply => {
-                    let b = self.stack.borrow_mut().pop(); // rhs operand
-                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a * b); // push result
                 }
                 OpCode::OpDivide => {
-                    let b = self.stack.borrow_mut().pop(); // rhs operand
-                    let a = self.stack.borrow_mut().pop(); // lhs operand
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a / b); // push result
                 }
             }
         }
+    }
+
+    fn check_for_non_number_types(
+        &self,
+        a: Value,
+        b: Value,
+    ) -> Result<(Value, Value), InterpretError> {
+        let a = match a {
+            Value::Number(num) => Value::Number(num),
+            _ => {
+                return Err(InterpretError::RuntimeError(
+                    "Cannot add two non-number types".to_string(),
+                ))
+            }
+        };
+        let b = match b {
+            Value::Number(num) => Value::Number(num),
+            _ => {
+                return Err(InterpretError::RuntimeError(
+                    "Cannot add two non-number types".to_string(),
+                ))
+            }
+        };
+
+        Ok((a, b))
     }
 
     pub fn interpret(&self, source: &str) -> InterpretResult {

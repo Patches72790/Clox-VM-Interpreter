@@ -24,6 +24,10 @@ impl Stack {
         }
         //self.values.pop().expect("Cannot pop from empty VM stack!")
     }
+
+    pub fn peek(&self) -> Option<Value> {
+        self.values.iter().rev().peekable().peek()
+    }
 }
 
 impl std::fmt::Display for Stack {
