@@ -22,11 +22,10 @@ impl Stack {
             Some(val) => Ok(val),
             None => Err("Cannot pop from empty VM stack!"),
         }
-        //self.values.pop().expect("Cannot pop from empty VM stack!")
     }
 
     pub fn peek(&self) -> Option<Value> {
-        self.values.iter().rev().peekable().peek()
+        todo!("Peek not implemented yet")
     }
 }
 
