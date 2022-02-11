@@ -60,6 +60,21 @@ impl<'a> Compiler<'a> {
                 prefix_fn: Some(Box::new(|| self.number(*num, 1))),
                 infix_fn: None,
             },
+            TokenType::True => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.literal())),
+                infix_fn: None,
+            },
+            TokenType::False => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.literal())),
+                infix_fn: None,
+            },
+            TokenType::Nil => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.literal())),
+                infix_fn: None,
+            },
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: Some(Box::new(|| self.grouping())),
@@ -94,7 +109,7 @@ impl<'a> Compiler<'a> {
         loop {
             let next_token = match self.tokens.borrow_mut().next() {
                 Some(tok) => tok,
-                None => return //  panic!("Error getting next token in advance!"),
+                None => return, //  panic!("Error getting next token in advance!"),
             };
 
             if DEBUG_MODE {
@@ -176,6 +191,20 @@ impl<'a> Compiler<'a> {
     fn grouping(&'a self) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
+    }
+
+    fn literal(&'a self) {
+        match self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token in literal")
+            .token_type
+        {
+            TokenType::True => self.emit_byte(OpCode::OpTrue),
+            TokenType::False => self.emit_byte(OpCode::OpFalse),
+            TokenType::Nil => self.emit_byte(OpCode::OpNil),
+            _ => return, // never will be here because literal only used for these three types
+        }
     }
 
     fn unary(&'a self) {

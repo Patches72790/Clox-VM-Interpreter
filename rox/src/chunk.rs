@@ -127,11 +127,8 @@ impl Chunk {
     ///in the bytecode vector for Chunk.
     pub fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
         print!("| {:0>4} ", offset);
-        print!("| {:>4} | ", chunk.get_line(offset));
+       print!("| {:>4} | ", chunk.get_line(offset));
 
-        //        if DEBUG_MODE {
-        //            print!("| Lines: {:?} |", chunk.lines);
-        //        }
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
             OpCode::OpConstant(constants_index) => {

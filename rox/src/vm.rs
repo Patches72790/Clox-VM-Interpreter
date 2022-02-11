@@ -92,6 +92,9 @@ impl VM {
                             );
                     self.stack.borrow_mut().push(constant);
                 }
+                OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
+                OpCode::OpFalse => self.stack.borrow_mut().push(Value::Boolean(false)),
+                OpCode::OpNil => self.stack.borrow_mut().push(Value::Nil),
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop()?;
 

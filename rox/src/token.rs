@@ -11,6 +11,26 @@ impl Deref for TokenStream {
     }
 }
 
+impl IntoIterator for TokenStream {
+    type Item = Token;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl FromIterator<Token> for TokenStream {
+    fn from_iter<T: IntoIterator<Item = Token>>(iter: T) -> Self {
+        let mut token_vec: Vec<Token> = vec![];
+
+        for i in iter {
+            token_vec.push(i);
+        }
+
+        TokenStream::new(token_vec)
+    }
+}
+
 impl<'a> TokenStream {
     pub fn new(tokens: Vec<Token>) -> TokenStream {
         TokenStream(tokens)
