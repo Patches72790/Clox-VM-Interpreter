@@ -67,8 +67,8 @@ impl VM {
             };
 
             if DEBUG_MODE {
-                println!("Stack: {}", *self.stack.borrow());
                 Chunk::disassemble_instruction(&instruction, current_ip, &self.chunk.borrow());
+                println!(" {}", *self.stack.borrow());
             }
 
             match instruction {
@@ -130,6 +130,9 @@ impl VM {
                     let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a / b); // push result
                 }
+                OpCode::OpNil => {}
+                OpCode::OpTrue => {}
+                OpCode::OpFalse => {}
             }
         }
     }
@@ -142,17 +145,21 @@ impl VM {
         let a = match a {
             Value::Number(num) => Value::Number(num),
             _ => {
-                return Err(InterpretError::RuntimeError(
-                    "Cannot add two non-number types".to_string(),
-                ))
+                let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
+                return Err(InterpretError::RuntimeError(format!(
+                    "[line {}]: Cannot add two non-number types",
+                    line
+                )));
             }
         };
         let b = match b {
             Value::Number(num) => Value::Number(num),
             _ => {
-                return Err(InterpretError::RuntimeError(
-                    "Cannot add two non-number types".to_string(),
-                ))
+                let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
+                return Err(InterpretError::RuntimeError(format!(
+                    "[line {}]: Cannot add two non-number types",
+                    line
+                )));
             }
         };
 
@@ -175,6 +182,9 @@ impl VM {
             ));
         }
 
+        if DEBUG_MODE {
+            print!("|  IP  | Line | OpCode              | Stack\n");
+        }
         // run vm with chunk filled with compiled opcodes
         self.run()
     }

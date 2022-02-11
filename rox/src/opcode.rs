@@ -11,6 +11,9 @@ pub enum OpCode {
     OpSubtract,
     OpMultiply,
     OpDivide,
+    OpNil,
+    OpTrue,
+    OpFalse,
 }
 
 impl std::fmt::Display for OpCode {
@@ -23,6 +26,9 @@ impl std::fmt::Display for OpCode {
             OpCode::OpSubtract => write!(f, "OP_SUBTRACT"),
             OpCode::OpMultiply => write!(f, "OP_MULTIPLY"),
             OpCode::OpDivide => write!(f, "OP_DIVIDE"),
+            OpCode::OpNil => write!(f, "OP_NIL"),
+            OpCode::OpTrue => write!(f, "OP_TRUE"),
+            OpCode::OpFalse => write!(f, "OP_FALSE"),
         }
     }
 }

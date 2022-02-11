@@ -11,7 +11,7 @@ pub struct Chunk {
     count: i32,
     pub code: Vec<OpCode>,
     pub constants: Values,
-    lines: Vec<String>,
+    pub lines: Vec<String>,
 }
 
 impl Chunk {
@@ -89,7 +89,7 @@ impl Chunk {
     /// that is greater than the index of the chunk byte
     /// being searched for and panics if not found.
     ///
-    fn get_line(&self, index: usize) -> usize {
+    pub fn get_line(&self, index: usize) -> usize {
         let result = self
             .lines
             .iter()
@@ -126,12 +126,12 @@ impl Chunk {
     ///Helper function for disassembling bytecode instructions instructions
     ///in the bytecode vector for Chunk.
     pub fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
-        print!("{:0>4} ", offset);
-        print!("{:>4} ", chunk.get_line(offset));
+        print!("| {:0>4} ", offset);
+        print!("| {:>4} | ", chunk.get_line(offset));
 
-        if DEBUG_MODE {
-            print!("Lines: {:?} ", chunk.lines);
-        }
+        //        if DEBUG_MODE {
+        //            print!("| Lines: {:?} |", chunk.lines);
+        //        }
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
             OpCode::OpConstant(constants_index) => {
@@ -142,20 +142,23 @@ impl Chunk {
             OpCode::OpSubtract => Chunk::simple_instruction("OP_SUBTRACT"),
             OpCode::OpMultiply => Chunk::simple_instruction("OP_MULTIPLY"),
             OpCode::OpDivide => Chunk::simple_instruction("OP_DIVIDE"),
+            OpCode::OpNil => Chunk::simple_instruction("OP_NIL"),
+            OpCode::OpTrue => Chunk::simple_instruction("OP_TRUE"),
+            OpCode::OpFalse => Chunk::simple_instruction("OP_FALSE"),
         };
     }
 
     fn constant_instruction(name: &str, index: usize, chunk: &Chunk) {
         print!("{:>11} {:<4}'", name, index);
         match chunk.constants.values.get(index) {
-            Some(val) => print!("{}", val),
+            Some(val) => print!("{:>4}", val),
             None => panic!("No constant value at that index!"),
         };
-        print!("'\n");
+        print!("' |");
     }
 
     fn simple_instruction(name: &str) {
-        println!("{}", name);
+        print!("{:<19} |", name);
     }
 }
 
