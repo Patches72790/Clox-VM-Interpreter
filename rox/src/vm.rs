@@ -217,7 +217,10 @@ mod tests {
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
         vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(60.0)));
+        assert_eq!(
+            vm.stack.borrow().values[0],
+            Some(Value::Number(RoxNumber(60.0)))
+        );
     }
 
     #[test]
@@ -240,7 +243,10 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(5.0)));
+        assert_eq!(
+            vm.stack.borrow().values[0],
+            Some(Value::Number(RoxNumber(5.0)))
+        );
     }
 
     /// Test 1 + 2 * 3 == 7
@@ -265,7 +271,10 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(7.0)));
+        assert_eq!(
+            vm.stack.borrow().values[0],
+            Some(Value::Number(RoxNumber(7.0)))
+        );
     }
 
     /// Test 3 - 2 - 1 == 0
@@ -289,7 +298,10 @@ mod tests {
             vm.interpret(&"".to_string()).unwrap();
         }
 
-        assert_eq!(vm.stack.borrow().values[0], Value::Number(RoxNumber(0.0)));
+        assert_eq!(
+            vm.stack.borrow().values[0],
+            Some(Value::Number(RoxNumber(0.0)))
+        );
     }
 
     #[test]
