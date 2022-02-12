@@ -95,6 +95,10 @@ impl VM {
                 OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
                 OpCode::OpFalse => self.stack.borrow_mut().push(Value::Boolean(false)),
                 OpCode::OpNil => self.stack.borrow_mut().push(Value::Nil),
+                OpCode::OpNot => {
+                    let val = self.stack.borrow_mut().pop()?;
+                    self.stack.borrow_mut().push(self.is_falsey(val));
+                }
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop()?;
 
@@ -133,10 +137,14 @@ impl VM {
                     let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a / b); // push result
                 }
-                OpCode::OpNil => {}
-                OpCode::OpTrue => {}
-                OpCode::OpFalse => {}
             }
+        }
+    }
+
+    fn is_falsey(&self, value: Value) -> Value {
+        match value {
+            Value::Boolean(false) | Value::Nil => Value::Boolean(true),
+            _ => Value::Boolean(false),
         }
     }
 

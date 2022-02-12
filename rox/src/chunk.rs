@@ -1,5 +1,4 @@
 use crate::OpCode;
-use crate::DEBUG_MODE;
 use crate::{Value, Values};
 
 ///The Chunk type corresponds to the basic block
@@ -127,7 +126,7 @@ impl Chunk {
     ///in the bytecode vector for Chunk.
     pub fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
         print!("| {:0>4} ", offset);
-       print!("| {:>4} | ", chunk.get_line(offset));
+        print!("| {:>4} | ", chunk.get_line(offset));
 
         match instr {
             OpCode::OpReturn(_) => Chunk::simple_instruction("OP_RETURN"),
@@ -142,6 +141,7 @@ impl Chunk {
             OpCode::OpNil => Chunk::simple_instruction("OP_NIL"),
             OpCode::OpTrue => Chunk::simple_instruction("OP_TRUE"),
             OpCode::OpFalse => Chunk::simple_instruction("OP_FALSE"),
+            OpCode::OpNot => Chunk::simple_instruction("OP_NOT"),
         };
     }
 

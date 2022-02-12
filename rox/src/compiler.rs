@@ -75,6 +75,11 @@ impl<'a> Compiler<'a> {
                 prefix_fn: Some(Box::new(|| self.literal())),
                 infix_fn: None,
             },
+            TokenType::Bang => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(|| self.unary())),
+                infix_fn: None,
+            },
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: Some(Box::new(|| self.grouping())),
@@ -220,6 +225,7 @@ impl<'a> Compiler<'a> {
         // emit operator opcode
         match operator_type.token_type {
             TokenType::Minus => self.emit_byte(OpCode::OpNegate),
+            TokenType::Bang => self.emit_byte(OpCode::OpNot),
             _ => panic!(
                 "Error parsing unary expression. Unexpected token type: {}",
                 operator_type
