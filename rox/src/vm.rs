@@ -223,6 +223,14 @@ mod tests {
     use super::Value;
     use super::*;
     use crate::RoxNumber;
+
+    #[test]
+    fn test_vm() {
+        let vm = VM::new();
+        vm.interpret("1 + 2");
+        todo!()
+    }
+
     #[test]
     fn test_negate_op() {
         let vm = VM::new();
