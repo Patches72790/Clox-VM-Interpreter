@@ -137,6 +137,23 @@ impl VM {
                     let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(a / b); // push result
                 }
+                OpCode::OpEqual => {
+                    let b = self.stack.borrow_mut().pop()?; // rhs
+                    let a = self.stack.borrow_mut().pop()?; // lhs
+                    self.stack.borrow_mut().push(Value::Boolean(a == b));
+                }
+                OpCode::OpGreater => {
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
+                    self.stack.borrow_mut().push(Value::Boolean(a > b)); // push result
+                }
+                OpCode::OpLess => {
+                    let b = self.stack.borrow_mut().pop()?; // rhs operand
+                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let (a, b) = self.check_for_non_number_types(a, b)?;
+                    self.stack.borrow_mut().push(Value::Boolean(a < b)); // push result
+                }
             }
         }
     }

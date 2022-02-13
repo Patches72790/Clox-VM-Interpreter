@@ -15,6 +15,9 @@ pub enum OpCode {
     OpTrue,
     OpFalse,
     OpNot,
+    OpEqual,
+    OpGreater,
+    OpLess,
 }
 
 impl std::fmt::Display for OpCode {
@@ -31,6 +34,9 @@ impl std::fmt::Display for OpCode {
             OpCode::OpTrue => write!(f, "OP_TRUE"),
             OpCode::OpFalse => write!(f, "OP_FALSE"),
             OpCode::OpNot => write!(f, "OP_NOT"),
+            OpCode::OpEqual => write!(f, "OP_EQUAL"),
+            OpCode::OpGreater => write!(f, "OP_GREATER"),
+            OpCode::OpLess => write!(f, "OP_LESS"),
         }
     }
 }

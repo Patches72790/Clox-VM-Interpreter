@@ -33,7 +33,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn get_rule(&'a self, t_type: &'a TokenType) -> ParseRule {
+    fn get_rule(&'a self, t_type: &'a TokenType, line: usize) -> ParseRule {
         match t_type {
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
@@ -57,7 +57,7 @@ impl<'a> Compiler<'a> {
             },
             TokenType::Number(num) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.number(*num, 1))),
+                prefix_fn: Some(Box::new(move || self.number(*num, line.clone()))),
                 infix_fn: None,
             },
             TokenType::True => ParseRule {
@@ -79,6 +79,36 @@ impl<'a> Compiler<'a> {
                 precedence: Precedence::PrecNone,
                 prefix_fn: Some(Box::new(|| self.unary())),
                 infix_fn: None,
+            },
+            TokenType::BangEqual => ParseRule {
+                precedence: Precedence::PrecEquality,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
+            },
+            TokenType::EqualEqual => ParseRule {
+                precedence: Precedence::PrecEquality,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
+            },
+            TokenType::Greater => ParseRule {
+                precedence: Precedence::PrecComparison,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
+            },
+            TokenType::GreaterEqual => ParseRule {
+                precedence: Precedence::PrecComparison,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
+            },
+            TokenType::Less => ParseRule {
+                precedence: Precedence::PrecComparison,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
+            },
+            TokenType::LessEqual => ParseRule {
+                precedence: Precedence::PrecComparison,
+                prefix_fn: None,
+                infix_fn: Some(Box::new(|| self.binary())),
             },
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
@@ -240,7 +270,7 @@ impl<'a> Compiler<'a> {
             .expect("Error borrowing previous token in binary");
 
         // get parse rule
-        let rule = self.get_rule(&operator_type.token_type);
+        let rule = self.get_rule(&operator_type.token_type, operator_type.line);
 
         // parse rule with next highest precedence (term -> factor, factor -> unary)
         self.parse(rule.precedence.get_next());
@@ -251,6 +281,12 @@ impl<'a> Compiler<'a> {
             TokenType::Minus => self.emit_byte(OpCode::OpSubtract),
             TokenType::Star => self.emit_byte(OpCode::OpMultiply),
             TokenType::Slash => self.emit_byte(OpCode::OpDivide),
+            TokenType::BangEqual => self.emit_bytes(OpCode::OpEqual, OpCode::OpNot),
+            TokenType::EqualEqual => self.emit_byte(OpCode::OpEqual),
+            TokenType::Greater => self.emit_byte(OpCode::OpGreater),
+            TokenType::GreaterEqual => self.emit_bytes(OpCode::OpLess, OpCode::OpNot), // (a >= b) == !(a < b)
+            TokenType::Less => self.emit_byte(OpCode::OpLess),
+            TokenType::LessEqual => self.emit_bytes(OpCode::OpGreater, OpCode::OpNot), // (a <= b) == !(a > b)
             _ => panic!(
                 "Error parsing binary expression. Unexpected token type: {}",
                 operator_type
@@ -258,8 +294,18 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    fn emit_bytes(&self, byte1: OpCode, byte2: OpCode) {
+        self.emit_byte(byte1);
+        self.emit_byte(byte2);
+    }
+
     fn emit_byte(&self, byte: OpCode) {
-        self.chunk.borrow_mut().write_chunk(byte, 1);
+        let line = self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token in emit byte")
+            .line;
+        self.chunk.borrow_mut().write_chunk(byte, line);
     }
 
     fn emit_return(&self) {
@@ -273,14 +319,13 @@ impl<'a> Compiler<'a> {
     fn parse(&'a self, precedence: &Precedence) {
         // advance cursor
         self.advance();
+        let previous_tok = self
+            .previous
+            .borrow()
+            .expect("Error borrowing current token in parse");
+
         let prefix_fn = self
-            .get_rule(
-                &self
-                    .previous
-                    .borrow()
-                    .expect("Error borrowing previous token in parser")
-                    .token_type,
-            )
+            .get_rule(&previous_tok.token_type, previous_tok.line)
             .prefix_fn;
 
         // call prefix parsing function if present
@@ -292,21 +337,24 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
+        let current_tok = self
+            .current
+            .borrow()
+            .expect("Error borrowing current token in parse");
         while precedence
             <= &self
-                .get_rule(&self.current.borrow().unwrap().token_type)
+                .get_rule(&current_tok.token_type, current_tok.line)
                 .precedence
         {
             // advance cursor and execute infix parsing function
             self.advance();
+            let previous_tok = self
+                .previous
+                .borrow()
+                .expect("Error borrowing current token in parse");
+
             let infix_fn = self
-                .get_rule(
-                    &self
-                        .previous
-                        .borrow()
-                        .expect("Error borrowing previous token in parser")
-                        .token_type,
-                )
+                .get_rule(&previous_tok.token_type, previous_tok.line)
                 .infix_fn;
 
             if let Some(in_fn) = infix_fn {

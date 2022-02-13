@@ -7,7 +7,7 @@ pub struct Values {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialOrd)]
 pub enum Value {
     Number(RoxNumber),
     Boolean(bool),
@@ -31,6 +31,27 @@ impl Values {
         self.values.push(value);
         self.count += 1;
         self.count - 1
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Value::Number(a_num) => match other {
+                Value::Number(b_num) => a_num == b_num,
+                _ => false,
+            },
+            Value::Boolean(a_bool) => match other {
+                Value::Boolean(b_bool) => a_bool == b_bool,
+                _ => false,
+            },
+            Value::Nil => true,
+            _ => false,
+        }
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        todo!()
     }
 }
 

@@ -142,6 +142,9 @@ impl Chunk {
             OpCode::OpTrue => Chunk::simple_instruction("OP_TRUE"),
             OpCode::OpFalse => Chunk::simple_instruction("OP_FALSE"),
             OpCode::OpNot => Chunk::simple_instruction("OP_NOT"),
+            OpCode::OpGreater => Chunk::simple_instruction("OP_GREATER"),
+            OpCode::OpEqual => Chunk::simple_instruction("OP_EQUAL"),
+            OpCode::OpLess => Chunk::simple_instruction("OP_LESS"),
         };
     }
 
