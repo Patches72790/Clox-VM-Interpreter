@@ -33,7 +33,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn get_rule(&'a self, t_type: &'a TokenType, line: usize) -> ParseRule {
+    fn get_rule(&'a self, t_type: &'a TokenType) -> ParseRule {
         match t_type {
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
@@ -57,7 +57,7 @@ impl<'a> Compiler<'a> {
             },
             TokenType::Number(num) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.number(*num, line.clone()))),
+                prefix_fn: Some(Box::new(move || self.number(*num, 1))),
                 infix_fn: None,
             },
             TokenType::True => ParseRule {
@@ -271,7 +271,7 @@ impl<'a> Compiler<'a> {
             .expect("Error borrowing previous token in binary");
 
         // get parse rule
-        let rule = self.get_rule(&operator_type.token_type, operator_type.line);
+        let rule = self.get_rule(&operator_type.token_type);
 
         // parse rule with next highest precedence (term -> factor, factor -> unary)
         self.parse(rule.precedence.get_next());
@@ -320,19 +320,21 @@ impl<'a> Compiler<'a> {
     fn parse(&'a self, precedence: &Precedence) {
         // advance cursor
         self.advance();
-        let previous_tok = self
-            .previous
-            .borrow()
-            .expect("Error borrowing current token in parse");
 
         let prefix_fn = self
-            .get_rule(&previous_tok.token_type, previous_tok.line)
+            .get_rule(
+                &self
+                    .previous
+                    .borrow()
+                    .expect("Error borrowing previous token in parse")
+                    .token_type,
+            )
             .prefix_fn;
 
         // call prefix parsing function if present
         if let Some(p_fn) = prefix_fn {
             p_fn();
-        } else if previous_tok.token_type == TokenType::EOF {
+        } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
             return;
         } else {
             self.error("No prefix function parsed.");
@@ -340,32 +342,29 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
-        let current_tok = self
-            .current
-            .borrow()
-            .expect("Error borrowing current token in parse");
         while precedence
             <= &self
-                .get_rule(&current_tok.token_type, current_tok.line)
+                .get_rule(&self.current.borrow().unwrap().token_type)
                 .precedence
         {
             // advance cursor and execute infix parsing function
             self.advance();
-            let previous_tok = self
-                .previous
-                .borrow()
-                .expect("Error borrowing current token in parse");
 
             let infix_fn = self
-                .get_rule(&previous_tok.token_type, previous_tok.line)
+                .get_rule(
+                    &self
+                        .previous
+                        .borrow()
+                        .expect("Error borrowing previous in parse")
+                        .token_type,
+                )
                 .infix_fn;
 
             if let Some(in_fn) = infix_fn {
                 in_fn();
-            } else if previous_tok.token_type == TokenType::EOF {
+            } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
                 return;
             } else {
-                println!("{:?}", previous_tok);
                 self.error("No infix function parsed.");
                 return;
             }
