@@ -175,7 +175,7 @@ impl VM {
             _ => {
                 let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
                 return Err(InterpretError::RuntimeError(format!(
-                    "[line {}]: Cannot add two non-number types",
+                    "[line {}]: Cannot relate two non-number types",
                     line
                 )));
             }
@@ -185,7 +185,7 @@ impl VM {
             _ => {
                 let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
                 return Err(InterpretError::RuntimeError(format!(
-                    "[line {}]: Cannot add two non-number types",
+                    "[line {}]: Cannot relate two non-number types",
                     line
                 )));
             }

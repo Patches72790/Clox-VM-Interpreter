@@ -45,13 +45,12 @@ impl PartialEq for Value {
                 Value::Boolean(b_bool) => a_bool == b_bool,
                 _ => false,
             },
-            Value::Nil => true,
+            Value::Nil => match other {
+                Value::Nil => true,
+                _ => false,
+            },
             _ => false,
         }
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        todo!()
     }
 }
 
