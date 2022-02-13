@@ -52,6 +52,9 @@ impl RawStack {
 
     pub fn pop(&mut self) -> Result<Value, &'static str> {
         unsafe {
+            if self.size == 0 {
+                return Err("Cannot pop from empty VM stack!");
+            }
             let new_ptr = self.stack_ptr.offset(-1);
             let val = *new_ptr;
             self.stack_ptr = new_ptr;

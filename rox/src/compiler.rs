@@ -167,6 +167,7 @@ impl<'a> Compiler<'a> {
             .borrow()
             .expect("Error consuming current token!");
         if current_tok.token_type == t_type {
+            println!("Consuming token {}", current_tok);
             self.advance();
             return;
         }
@@ -331,8 +332,10 @@ impl<'a> Compiler<'a> {
         // call prefix parsing function if present
         if let Some(p_fn) = prefix_fn {
             p_fn();
+        } else if previous_tok.token_type == TokenType::EOF {
+            return;
         } else {
-            self.error("Expect expression.");
+            self.error("No prefix function parsed.");
             return;
         }
 
@@ -359,7 +362,10 @@ impl<'a> Compiler<'a> {
 
             if let Some(in_fn) = infix_fn {
                 in_fn();
+            } else if previous_tok.token_type == TokenType::EOF {
+                return;
             } else {
+                println!("{:?}", previous_tok);
                 self.error("No infix function parsed.");
                 return;
             }
