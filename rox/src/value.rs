@@ -7,7 +7,7 @@ pub struct Values {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Copy, Clone, PartialOrd)]
+#[derive(Debug, Copy, Clone)]
 pub enum Value {
     Number(RoxNumber),
     Boolean(bool),
@@ -31,6 +31,18 @@ impl Values {
         self.values.push(value);
         self.count += 1;
         self.count - 1
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self {
+            Value::Number(self_num) => match other {
+                Value::Number(other_num) => self_num.partial_cmp(other_num),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }
 
