@@ -2,14 +2,14 @@ use crate::Value;
 use crate::STACK_MAX;
 
 pub struct RawStack {
-    pub values: Box<[Option<Value>; STACK_MAX]>,
+    pub values: [Option<Value>; STACK_MAX],
     pub size: usize,
     pub stack_ptr: *mut Option<Value>,
 }
 
 impl RawStack {
     pub fn new() -> RawStack {
-        let mut values = Box::new([None; STACK_MAX]);
+        let mut values = [None; STACK_MAX];
         let stack_ptr = values.as_mut_ptr();
         RawStack {
             values,
