@@ -9,7 +9,7 @@ pub struct RawStack {
 
 impl RawStack {
     pub fn new() -> RawStack {
-        let mut values = [None; STACK_MAX];
+        let mut values = [(); STACK_MAX].map(|_| Option::<Value>::default());
         let stack_ptr = values.as_mut_ptr();
         RawStack {
             values,
@@ -19,10 +19,8 @@ impl RawStack {
     }
 
     pub fn reset_stack(&mut self) {
-        unsafe {
-            self.size = 0;
-            *self.stack_ptr = self.values[self.size]
-        }
+        self.size = 0;
+        self.stack_ptr = self.values.as_mut_ptr();
     }
 
     pub fn peek(&self, distance: usize) -> Result<Value, ()> {
@@ -32,9 +30,9 @@ impl RawStack {
                 panic!("Cannot peek beyond bottom of stack!");
             }
 
-            let val = *self.stack_ptr.offset(-1 - distance as isize);
-            let val = val.expect("Error peeking value from stack");
-            Ok(val)
+            let val = &*self.stack_ptr.offset(-1 - distance as isize);
+            let val = val.as_ref().expect("Error peeking value from stack");
+            Ok(val.clone())
         }
     }
 
@@ -56,11 +54,11 @@ impl RawStack {
                 return Err("Cannot pop from empty VM stack!");
             }
             let new_ptr = self.stack_ptr.offset(-1);
-            let val = *new_ptr;
+            let val = &*new_ptr;
             self.stack_ptr = new_ptr;
             self.size -= 1;
             match val {
-                Some(val) => Ok(val),
+                Some(val) => Ok(val.clone()),
                 None => Err("Cannot pop from empty VM stack!"),
             }
         }
@@ -71,7 +69,7 @@ impl std::fmt::Display for RawStack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::from("[");
         for i in 0..self.size {
-            if let Some(val) = self.values[i] {
+            if let Some(val) = &self.values[i] {
                 s.push_str(&(val.to_string()));
                 if i < self.size - 1 {
                     s.push_str(", ");

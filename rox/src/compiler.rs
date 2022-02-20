@@ -1,14 +1,18 @@
-use crate::{Chunk, OpCode, Precedence, RoxNumber, Token, TokenType, Value, DEBUG_MODE};
+use crate::{
+    Chunk, ObjectType, OpCode, Precedence, RoxNumber, RoxObject, RoxString, Token, TokenType,
+    Value, DEBUG_MODE,
+};
 use std::cell::RefCell;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
 
-pub struct Compiler<'a> {
+pub struct Compiler<'a, 'b> {
     chunk: Rc<RefCell<Chunk>>,
     tokens: RefCell<Peekable<Iter<'a, Token>>>,
     previous: RefCell<Option<&'a Token>>,
     current: RefCell<Option<&'a Token>>,
+    add_object: Box<dyn Fn(&mut RoxObject) + 'b>,
     pub had_error: RefCell<bool>,
     pub panic_mode: RefCell<bool>,
 }
@@ -21,8 +25,12 @@ struct ParseRule<'a> {
     prefix_fn: Option<ParseFn<'a>>,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(chunk: Rc<RefCell<Chunk>>, tokens: RefCell<Peekable<Iter<'a, Token>>>) -> Compiler {
+impl<'a, 'b> Compiler<'a, 'b> {
+    pub fn new(
+        chunk: Rc<RefCell<Chunk>>,
+        tokens: RefCell<Peekable<Iter<'a, Token>>>,
+        add_object: Box<dyn Fn(&mut RoxObject) + 'b>,
+    ) -> Compiler<'a, 'b> {
         Compiler {
             chunk,
             tokens,
@@ -30,10 +38,14 @@ impl<'a> Compiler<'a> {
             panic_mode: RefCell::new(false),
             previous: RefCell::new(None),
             current: RefCell::new(None),
+            add_object,
         }
     }
 
-    fn get_rule(&'a self, t_type: &'a TokenType) -> ParseRule {
+    fn get_rule(&'a self, token: &'a Token) -> ParseRule {
+        let t_type = &token.token_type;
+        let line = token.line;
+
         match t_type {
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
@@ -57,7 +69,7 @@ impl<'a> Compiler<'a> {
             },
             TokenType::Number(num) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.number(*num, 1))),
+                prefix_fn: Some(Box::new(move || self.number(*num, line))),
                 infix_fn: None,
             },
             TokenType::True => ParseRule {
@@ -123,6 +135,11 @@ impl<'a> Compiler<'a> {
             TokenType::Semicolon => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: None,
+                infix_fn: None,
+            },
+            TokenType::StringLiteral(str) => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(move || self.string(&str[..], line))),
                 infix_fn: None,
             },
             TokenType::EOF => ParseRule {
@@ -229,6 +246,13 @@ impl<'a> Compiler<'a> {
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
     }
 
+    fn string(&'a self, string: &str, line: usize) {
+        let mut new_rox_object = RoxObject::new(ObjectType::ObjString(RoxString::new(string)));
+        (self.add_object)(&mut new_rox_object);
+
+        self.emit_constant(Value::Object(new_rox_object), line);
+    }
+
     fn literal(&'a self) {
         match self
             .previous
@@ -271,7 +295,7 @@ impl<'a> Compiler<'a> {
             .expect("Error borrowing previous token in binary");
 
         // get parse rule
-        let rule = self.get_rule(&operator_type.token_type);
+        let rule = self.get_rule(&operator_type);
 
         // parse rule with next highest precedence (term -> factor, factor -> unary)
         self.parse(rule.precedence.get_next());
@@ -326,8 +350,7 @@ impl<'a> Compiler<'a> {
                 &self
                     .previous
                     .borrow()
-                    .expect("Error borrowing previous token in parse")
-                    .token_type,
+                    .expect("Error borrowing previous token in parse"),
             )
             .prefix_fn;
 
@@ -342,11 +365,7 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
-        while precedence
-            <= &self
-                .get_rule(&self.current.borrow().unwrap().token_type)
-                .precedence
-        {
+        while precedence <= &self.get_rule(&self.current.borrow().unwrap()).precedence {
             // advance cursor and execute infix parsing function
             self.advance();
 
@@ -355,8 +374,7 @@ impl<'a> Compiler<'a> {
                     &self
                         .previous
                         .borrow()
-                        .expect("Error borrowing previous in parse")
-                        .token_type,
+                        .expect("Error borrowing previous in parse"),
                 )
                 .infix_fn;
 

@@ -1,6 +1,7 @@
 use crate::Chunk;
 use crate::Compiler;
 use crate::OpCode;
+use crate::RoxObject;
 use crate::Scanner;
 use crate::Stack;
 use crate::Value;
@@ -14,9 +15,10 @@ pub struct VM {
     ip: RefCell<usize>,
     stack: RefCell<Stack>,
     scanner: Scanner,
+    objects: RefCell<Option<*mut RoxObject>>,
 }
 
-impl VM {
+impl<'a> VM {
     pub fn new() -> VM {
         let chunk = Rc::new(RefCell::new(Chunk::new()));
         VM {
@@ -24,6 +26,37 @@ impl VM {
             ip: RefCell::new(0),
             stack: RefCell::new(Stack::new()),
             scanner: Scanner::new(),
+            objects: RefCell::new(None),
+        }
+    }
+
+    pub fn add_object(&self, new_object: &mut RoxObject) {
+        unsafe {
+            let objs = *self.objects.borrow_mut();
+            if let None = objs {
+                *self.objects.borrow_mut() = Some(new_object);
+                println!("Setting head of objects: {:?}", new_object);
+            } else {
+                let mut current_obj = *self.objects.borrow_mut();
+
+                loop {
+                    match current_obj {
+                        Some(obj) => current_obj = Some(obj),
+                        None => break,
+                    }
+                }
+
+                //                while let Some(next_obj) = objs {
+                //                    println!("Current obj: {:?}", next_obj);
+                //                }
+                //                match objs {
+                //                    Some(obj) => {
+                //                        println!("Appending new object: {:?}", new_object);
+                //                        (*obj).next_object = Some(new_object)
+                //                    }
+                //                    _ => panic!("Error adding object in VM!"),
+                //                }
+            }
         }
     }
 
@@ -42,7 +75,7 @@ impl VM {
 
     fn read_constant(values: &Vec<Value>, index: usize) -> Option<Value> {
         if let Some(val) = values.get(index) {
-            Some(*val)
+            Some(val.clone())
         } else {
             None
         }
@@ -194,14 +227,18 @@ impl VM {
         Ok((a, b))
     }
 
-    pub fn interpret(&self, source: &str) -> InterpretResult {
+    pub fn interpret(&'a self, source: &str) -> InterpretResult {
         // read and scan tokens
         let tokens = self.scanner.scan_tokens(source);
 
         // make new compiler
         let chunk = Rc::clone(&self.chunk);
         let peekable_tokens = RefCell::new(tokens.iter().peekable());
-        let compiler = Compiler::new(chunk, peekable_tokens);
+        let compiler = Compiler::new(
+            chunk,
+            peekable_tokens,
+            Box::new(|new_object| self.add_object(new_object)),
+        );
 
         // parse and compile tokens into opcodes
         if !compiler.compile() {
@@ -213,6 +250,7 @@ impl VM {
         if DEBUG_MODE {
             print!("|  IP  | Line | OpCode              | Stack\n");
         }
+        println!("{:?}", self.objects);
         // run vm with chunk filled with compiled opcodes
         self.run()
     }

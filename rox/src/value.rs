@@ -1,4 +1,4 @@
-use crate::{ObjectType, RoxNumber};
+use crate::{RoxNumber, RoxObject};
 use std::ops;
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub enum Value {
     Number(RoxNumber),
     Boolean(bool),
     Nil,
-    Object(ObjectType),
+    Object(RoxObject),
     Error,
 }
 
