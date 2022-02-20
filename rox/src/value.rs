@@ -1,4 +1,4 @@
-use crate::RoxNumber;
+use crate::{ObjectType, RoxNumber};
 use std::ops;
 
 #[derive(Debug)]
@@ -7,11 +7,12 @@ pub struct Values {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Number(RoxNumber),
     Boolean(bool),
     Nil,
+    Object(ObjectType),
     Error,
 }
 
@@ -151,6 +152,7 @@ impl std::fmt::Display for Value {
             Value::Number(num) => write!(f, "{}", num.to_string()),
             Value::Boolean(b) => write!(f, "{}", b.to_string()),
             Value::Nil => write!(f, "nil"),
+            Value::Object(obj) => write!(f, "Object<{}>", obj),
             Value::Error => write!(f, "Value<Error>"),
         }
     }

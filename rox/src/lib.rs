@@ -1,6 +1,7 @@
 mod chunk;
 mod compiler;
 mod error;
+mod object;
 mod opcode;
 mod precedence;
 mod raw_stack;
@@ -13,6 +14,7 @@ mod vm;
 pub use chunk::*;
 pub use compiler::*;
 pub use error::*;
+pub use object::*;
 pub use opcode::OpCode;
 pub use precedence::Precedence;
 pub use raw_stack::RawStack as Stack;
