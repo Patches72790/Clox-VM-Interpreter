@@ -1,7 +1,9 @@
 use crate::Chunk;
 use crate::Compiler;
+use crate::ObjectType;
 use crate::OpCode;
 use crate::RoxObject;
+use crate::RoxString;
 use crate::Scanner;
 use crate::Stack;
 use crate::Value;
@@ -30,32 +32,22 @@ impl<'a> VM {
         }
     }
 
+    ///
+    /// This adds an allocated object to the implicit linked list
+    /// of objects tracked by this VM.
+    ///
     pub fn add_object(&self, new_object: &mut RoxObject) {
+        // prepend to linked list
+        new_object.next_object = *self.objects.borrow();
+        *self.objects.borrow_mut() = Some(new_object);
+    }
+
+    fn print_objects(&self) {
         unsafe {
-            let objs = *self.objects.borrow_mut();
-            if let None = objs {
-                *self.objects.borrow_mut() = Some(new_object);
-                println!("Setting head of objects: {:?}", new_object);
-            } else {
-                let mut current_obj = *self.objects.borrow_mut();
-
-                loop {
-                    match current_obj {
-                        Some(obj) => current_obj = Some(obj),
-                        None => break,
-                    }
-                }
-
-                //                while let Some(next_obj) = objs {
-                //                    println!("Current obj: {:?}", next_obj);
-                //                }
-                //                match objs {
-                //                    Some(obj) => {
-                //                        println!("Appending new object: {:?}", new_object);
-                //                        (*obj).next_object = Some(new_object)
-                //                    }
-                //                    _ => panic!("Error adding object in VM!"),
-                //                }
+            let mut current = *self.objects.borrow();
+            while let Some(obj) = current {
+                println!("{}", (*obj).object_type);
+                current = (*obj).next_object;
             }
         }
     }
@@ -149,8 +141,13 @@ impl<'a> VM {
                 OpCode::OpAdd => {
                     let b = self.stack.borrow_mut().pop()?; // rhs operand
                     let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(a + b); // push result
+
+                    if self.check_for_strings(&a, &b) {
+                        self.concatenate(a, b);
+                    } else {
+                        let (a, b) = self.check_for_non_number_types(a, b)?;
+                        self.stack.borrow_mut().push(a + b); // push result
+                    }
                 }
                 OpCode::OpSubtract => {
                     let b = self.stack.borrow_mut().pop()?; // rhs operand
@@ -195,6 +192,40 @@ impl<'a> VM {
         match value {
             Value::Boolean(false) | Value::Nil => Value::Boolean(true),
             _ => Value::Boolean(false),
+        }
+    }
+
+    fn concatenate(&self, lhs: Value, rhs: Value) {
+        match lhs {
+            Value::Object(obj) => match obj.object_type {
+                ObjectType::ObjString(string_one) => match rhs {
+                    Value::Object(obj_two) => match obj_two.object_type {
+                        ObjectType::ObjString(string_two) => {
+                            let new_string_obj = Value::Object(RoxObject::new(
+                                ObjectType::ObjString(string_one + string_two),
+                            ));
+
+                            self.stack.borrow_mut().push(new_string_obj);
+                        }
+                    },
+                    _ => (),
+                },
+            },
+            _ => (),
+        }
+    }
+
+    fn check_for_strings(&self, lhs: &Value, rhs: &Value) -> bool {
+        match lhs {
+            Value::Object(obj_one) => match obj_one.object_type {
+                ObjectType::ObjString(_) => match rhs {
+                    Value::Object(obj_two) => match obj_two.object_type {
+                        ObjectType::ObjString(_) => true,
+                    },
+                    _ => false,
+                },
+            },
+            _ => false,
         }
     }
 
@@ -248,9 +279,10 @@ impl<'a> VM {
         }
 
         if DEBUG_MODE {
+            println!("Objects:");
+            //self.print_objects();
             print!("|  IP  | Line | OpCode              | Stack\n");
         }
-        println!("{:?}", self.objects);
         // run vm with chunk filled with compiled opcodes
         self.run()
     }

@@ -2,7 +2,7 @@ mod roxstring;
 
 pub use crate::object::roxstring::RoxString;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoxObject {
     pub object_type: ObjectType,
     pub next_object: Option<*mut RoxObject>,
@@ -23,7 +23,7 @@ impl std::fmt::Display for RoxObject {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectType {
     ObjString(RoxString),
 }

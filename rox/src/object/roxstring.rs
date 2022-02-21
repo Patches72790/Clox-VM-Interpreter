@@ -1,4 +1,4 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoxString(String);
 
 impl RoxString {
@@ -8,6 +8,14 @@ impl RoxString {
 
     pub fn length(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl std::ops::Add for RoxString {
+    type Output = RoxString;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        RoxString::new(&(self.0 + &rhs.0))
     }
 }
 

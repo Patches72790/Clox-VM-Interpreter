@@ -1,4 +1,4 @@
-use crate::{RoxNumber, RoxObject};
+use crate::{ObjectType, RoxNumber, RoxObject};
 use std::ops;
 
 #[derive(Debug)]
@@ -61,6 +61,14 @@ impl PartialEq for Value {
             Value::Nil => match other {
                 Value::Nil => true,
                 _ => false,
+            },
+            Value::Object(obj) => match &obj.object_type {
+                ObjectType::ObjString(string_one) => match other {
+                    Value::Object(obj_two) => match &obj_two.object_type {
+                        ObjectType::ObjString(string_two) => string_one == string_two,
+                    },
+                    _ => false,
+                },
             },
             _ => false,
         }
