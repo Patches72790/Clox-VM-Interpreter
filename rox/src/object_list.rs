@@ -1,4 +1,6 @@
 use crate::RoxObject;
+use std::ptr; // Possibly convert to using ptr::null_mut instead of None?
+
 
 #[derive(Debug)]
 pub struct ObjectList(Option<*mut RoxObject>);

@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoxString(String);
 
@@ -8,6 +10,14 @@ impl RoxString {
 
     pub fn length(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl Deref for RoxString {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

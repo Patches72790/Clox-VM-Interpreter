@@ -4,6 +4,7 @@ use crate::ObjectList;
 use crate::ObjectType;
 use crate::OpCode;
 use crate::RoxObject;
+use crate::RoxString;
 use crate::Scanner;
 use crate::Stack;
 use crate::Value;
@@ -20,7 +21,7 @@ pub struct VM {
     objects: Rc<RefCell<ObjectList>>,
 }
 
-impl<'a> VM {
+impl VM {
     pub fn new() -> VM {
         let objects = Rc::new(RefCell::new(ObjectList::new()));
         let chunk = Rc::new(RefCell::new(Chunk::new(Rc::clone(&objects))));
@@ -128,9 +129,11 @@ impl<'a> VM {
                     let b = self.stack.borrow_mut().pop()?; // rhs operand
                     let a = self.stack.borrow_mut().pop()?; // lhs operand
 
-                    if self.check_for_strings(&a, &b) {
-                        self.concatenate(a, b);
+                    // check for string concatenation
+                    if let (true, Some(str_1), Some(str_2)) = self.check_for_strings(&a, &b) {
+                        self.concatenate(str_1, str_2);
                     } else {
+                        // otherwise only numbers are addable
                         let (a, b) = self.check_for_non_number_types(a, b)?;
                         self.stack.borrow_mut().push(a + b); // push result
                     }
@@ -181,37 +184,29 @@ impl<'a> VM {
         }
     }
 
-    fn concatenate(&self, lhs: Value, rhs: Value) {
-        match lhs {
-            Value::Object(obj) => match obj.object_type {
-                ObjectType::ObjString(string_one) => match rhs {
-                    Value::Object(obj_two) => match obj_two.object_type {
-                        ObjectType::ObjString(string_two) => {
-                            let new_string_obj = Value::Object(RoxObject::new(
-                                ObjectType::ObjString(string_one + string_two),
-                            ));
-
-                            self.stack.borrow_mut().push(new_string_obj);
-                        }
-                    },
-                    _ => (),
-                },
-            },
-            _ => (),
-        }
+    fn concatenate<'a>(&self, lhs: &'a RoxString, rhs: &'a RoxString) {
+        let new_string = lhs.clone() + rhs.clone();
+        let mut new_string_obj = RoxObject::new(ObjectType::ObjString(new_string));
+        // new string is allocated so add it to objects list
+        self.objects.borrow_mut().add_object(&mut new_string_obj);
+        self.stack.borrow_mut().push(Value::Object(new_string_obj));
     }
 
-    fn check_for_strings(&self, lhs: &Value, rhs: &Value) -> bool {
+    fn check_for_strings<'a>(
+        &self,
+        lhs: &'a Value,
+        rhs: &'a Value,
+    ) -> (bool, Option<&'a RoxString>, Option<&'a RoxString>) {
         match lhs {
-            Value::Object(obj_one) => match obj_one.object_type {
-                ObjectType::ObjString(_) => match rhs {
-                    Value::Object(obj_two) => match obj_two.object_type {
-                        ObjectType::ObjString(_) => true,
+            Value::Object(obj_one) => match &obj_one.object_type {
+                ObjectType::ObjString(str_1) => match rhs {
+                    Value::Object(obj_two) => match &obj_two.object_type {
+                        ObjectType::ObjString(str_2) => (true, Some(&str_1), Some(&str_2)),
                     },
-                    _ => false,
+                    _ => (false, None, None),
                 },
             },
-            _ => false,
+            _ => (false, None, None),
         }
     }
 
@@ -244,7 +239,7 @@ impl<'a> VM {
         Ok((a, b))
     }
 
-    pub fn interpret(&'a self, source: &str) -> InterpretResult {
+    pub fn interpret(&self, source: &str) -> InterpretResult {
         // read and scan tokens
         let tokens = self.scanner.scan_tokens(source);
 

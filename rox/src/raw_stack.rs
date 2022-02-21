@@ -1,6 +1,7 @@
 use crate::Value;
 use crate::STACK_MAX;
 
+#[derive(Debug)]
 pub struct RawStack {
     pub values: [Option<Value>; STACK_MAX],
     pub size: usize,
@@ -68,6 +69,7 @@ impl RawStack {
 impl std::fmt::Display for RawStack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::from("[");
+        // TODO! Need to implement this to use stack ptr instead of array
         for i in 0..self.size {
             if let Some(val) = &self.values[i] {
                 s.push_str(&(val.to_string()));
@@ -98,18 +100,18 @@ mod tests {
         assert_eq!(s.peek(2).ok().unwrap().to_string(), "6");
     }
 
-    //    #[test]
-    //    #[should_panic]
-    //    fn test_peek_panic() {
-    //        let mut s = RawStack::new();
-    //        s.push(Value::Number(RoxNumber(6.0)));
-    //        s.push(Value::Number(RoxNumber(5.0)));
-    //        s.push(Value::Number(RoxNumber(4.0)));
-    //
-    //        assert_eq!(s.peek(3).ok().unwrap().to_string(), "4");
-    //        assert_eq!(s.peek(4).ok().unwrap().to_string(), "5");
-    //        assert_eq!(s.peek(5).ok().unwrap().to_string(), "6");
-    //    }
+    #[test]
+    #[should_panic]
+    fn test_peek_panic() {
+        let mut s = RawStack::new();
+        s.push(Value::Number(RoxNumber(6.0)));
+        s.push(Value::Number(RoxNumber(5.0)));
+        s.push(Value::Number(RoxNumber(4.0)));
+
+        assert_eq!(s.peek(3).ok().unwrap().to_string(), "4");
+        assert_eq!(s.peek(4).ok().unwrap().to_string(), "5");
+        assert_eq!(s.peek(5).ok().unwrap().to_string(), "6");
+    }
 
     #[test]
     fn test_push() {
@@ -117,24 +119,31 @@ mod tests {
         s.push(Value::Number(RoxNumber(6.0)));
         s.push(Value::Number(RoxNumber(5.0)));
         s.push(Value::Number(RoxNumber(4.0)));
-        println!("{:?}", s.values);
+        println!("{:?}", s);
 
-        assert_eq!(s.to_string(), "[6, 5, 4]");
+        assert_eq!(s.size, 3);
     }
 
     #[test]
-    fn test_pop() {
+    fn test_pop() -> Result<(), &'static str> {
         let mut s = RawStack::new();
         s.push(Value::Number(RoxNumber(6.0)));
         s.push(Value::Number(RoxNumber(5.0)));
         s.push(Value::Number(RoxNumber(4.0)));
 
-        s.pop();
-        s.pop();
-        s.pop();
+        let val1 = s.pop()?;
+        let val2 = s.pop()?;
+        let val3 = s.pop()?;
+
+        assert_eq!(val1, Value::Number(RoxNumber(4.0)));
+        assert_eq!(val2, Value::Number(RoxNumber(5.0)));
+        assert_eq!(val3, Value::Number(RoxNumber(6.0)));
+
         if let Ok(_) = s.pop() {
             assert!(false);
         }
+
+        Ok(())
     }
 
     #[test]
@@ -145,5 +154,15 @@ mod tests {
         for i in 0..STACK_MAX + 1 {
             s.push(Value::Number(RoxNumber(i as f32)));
         }
+    }
+
+    #[test]
+    fn test_print_stack() {
+        let mut s = RawStack::new();
+        s.push(Value::Number(RoxNumber(6.0)));
+        s.push(Value::Number(RoxNumber(5.0)));
+        s.push(Value::Number(RoxNumber(4.0)));
+
+        assert_eq!(s.to_string(), "[6, 5, 4]");
     }
 }
