@@ -1,5 +1,7 @@
-use crate::OpCode;
+use crate::{ObjectList, OpCode};
 use crate::{Value, Values};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 ///The Chunk type corresponds to the basic block
 ///of code with a size of count and capacity.
@@ -11,6 +13,7 @@ pub struct Chunk {
     pub code: Vec<OpCode>,
     pub constants: Values,
     pub lines: Vec<String>,
+    objects: Rc<RefCell<ObjectList>>,
 }
 
 impl Chunk {
@@ -18,12 +21,13 @@ impl Chunk {
     ///Creates and returns a new chunk with size/capacity of 0.
     ///The code vector is initially set to Option<None>.
     ///
-    pub fn new() -> Chunk {
+    pub fn new(objects: Rc<RefCell<ObjectList>>) -> Chunk {
         Chunk {
             count: 0,
             code: vec![],
             constants: Values::new(),
             lines: vec![],
+            objects,
         }
     }
 
@@ -118,7 +122,13 @@ impl Chunk {
     /// Then the method writes to the chunk with the provided index.
     ///
     pub fn add_constant(&mut self, value: Value, line: usize) {
-        let index = self.constants.write_value(value);
+        let (index, value_ref) = self.constants.write_value(value);
+
+        // add rox object to list for tracking allocated objects
+        if let Value::Object(obj) = value_ref {
+            self.objects.borrow_mut().add_object(obj);
+        }
+
         self.write_chunk(OpCode::OpConstant(index), line);
     }
 

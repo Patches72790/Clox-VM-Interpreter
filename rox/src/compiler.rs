@@ -7,12 +7,11 @@ use std::iter::Peekable;
 use std::rc::Rc;
 use std::slice::Iter;
 
-pub struct Compiler<'a, 'b> {
+pub struct Compiler<'a> {
     chunk: Rc<RefCell<Chunk>>,
     tokens: RefCell<Peekable<Iter<'a, Token>>>,
     previous: RefCell<Option<&'a Token>>,
     current: RefCell<Option<&'a Token>>,
-    add_object: Box<dyn Fn(&mut RoxObject) + 'b>,
     pub had_error: RefCell<bool>,
     pub panic_mode: RefCell<bool>,
 }
@@ -25,12 +24,11 @@ struct ParseRule<'a> {
     prefix_fn: Option<ParseFn<'a>>,
 }
 
-impl<'a, 'b> Compiler<'a, 'b> {
+impl<'a> Compiler<'a> {
     pub fn new(
         chunk: Rc<RefCell<Chunk>>,
         tokens: RefCell<Peekable<Iter<'a, Token>>>,
-        add_object: Box<dyn Fn(&mut RoxObject) + 'b>,
-    ) -> Compiler<'a, 'b> {
+    ) -> Compiler<'a> {
         Compiler {
             chunk,
             tokens,
@@ -38,7 +36,6 @@ impl<'a, 'b> Compiler<'a, 'b> {
             panic_mode: RefCell::new(false),
             previous: RefCell::new(None),
             current: RefCell::new(None),
-            add_object,
         }
     }
 
@@ -247,9 +244,7 @@ impl<'a, 'b> Compiler<'a, 'b> {
     }
 
     fn string(&'a self, string: &str, line: usize) {
-        let mut new_rox_object = RoxObject::new(ObjectType::ObjString(RoxString::new(string)));
-        (self.add_object)(&mut new_rox_object);
-
+        let new_rox_object = RoxObject::new(ObjectType::ObjString(RoxString::new(string)));
         self.emit_constant(Value::Object(new_rox_object), line);
     }
 

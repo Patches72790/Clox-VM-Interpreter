@@ -1,9 +1,9 @@
 use crate::Chunk;
 use crate::Compiler;
+use crate::ObjectList;
 use crate::ObjectType;
 use crate::OpCode;
 use crate::RoxObject;
-use crate::RoxString;
 use crate::Scanner;
 use crate::Stack;
 use crate::Value;
@@ -17,44 +17,26 @@ pub struct VM {
     ip: RefCell<usize>,
     stack: RefCell<Stack>,
     scanner: Scanner,
-    objects: RefCell<Option<*mut RoxObject>>,
+    objects: Rc<RefCell<ObjectList>>,
 }
 
 impl<'a> VM {
     pub fn new() -> VM {
-        let chunk = Rc::new(RefCell::new(Chunk::new()));
+        let objects = Rc::new(RefCell::new(ObjectList::new()));
+        let chunk = Rc::new(RefCell::new(Chunk::new(Rc::clone(&objects))));
         VM {
             chunk: Rc::clone(&chunk),
             ip: RefCell::new(0),
             stack: RefCell::new(Stack::new()),
             scanner: Scanner::new(),
-            objects: RefCell::new(None),
-        }
-    }
-
-    ///
-    /// This adds an allocated object to the implicit linked list
-    /// of objects tracked by this VM.
-    ///
-    pub fn add_object(&self, new_object: &mut RoxObject) {
-        // prepend to linked list
-        new_object.next_object = *self.objects.borrow();
-        *self.objects.borrow_mut() = Some(new_object);
-    }
-
-    fn print_objects(&self) {
-        unsafe {
-            let mut current = *self.objects.borrow();
-            while let Some(obj) = current {
-                println!("{}", (*obj).object_type);
-                current = (*obj).next_object;
-            }
+            objects: Rc::clone(&objects),
         }
     }
 
     pub fn reset(&mut self) {
         *(self.ip.borrow_mut()) = 0;
         self.chunk.borrow_mut().reset();
+        self.objects.borrow_mut().reset();
     }
 
     fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
@@ -73,12 +55,16 @@ impl<'a> VM {
         }
     }
 
+    fn incr_ip(&self) -> usize {
+        let current_ip = self.ip.borrow().clone();
+        *self.ip.borrow_mut() += 1;
+
+        current_ip
+    }
+
     fn run(&self) -> InterpretResult {
         loop {
-            // grab current IP
-            let current_ip = self.ip.borrow().clone();
-            // increment the IP
-            *self.ip.borrow_mut() += 1;
+            let current_ip = self.incr_ip();
 
             // read next instruction
             let instruction = match VM::read_byte(&self.chunk.borrow().code, current_ip) {
@@ -265,11 +251,7 @@ impl<'a> VM {
         // make new compiler
         let chunk = Rc::clone(&self.chunk);
         let peekable_tokens = RefCell::new(tokens.iter().peekable());
-        let compiler = Compiler::new(
-            chunk,
-            peekable_tokens,
-            Box::new(|new_object| self.add_object(new_object)),
-        );
+        let compiler = Compiler::new(chunk, peekable_tokens);
 
         // parse and compile tokens into opcodes
         if !compiler.compile() {
@@ -280,7 +262,7 @@ impl<'a> VM {
 
         if DEBUG_MODE {
             println!("Objects:");
-            //self.print_objects();
+            self.objects.borrow().print_objects();
             print!("|  IP  | Line | OpCode              | Stack\n");
         }
         // run vm with chunk filled with compiled opcodes

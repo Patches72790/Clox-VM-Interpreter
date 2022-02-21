@@ -28,10 +28,13 @@ impl Values {
      * Writes a value to the values array and returns the index at which it
      * was added for use in the chunk instruction block.
      */
-    pub fn write_value(&mut self, value: Value) -> usize {
+    pub fn write_value(&mut self, value: Value) -> (usize, &mut Value) {
         self.values.push(value);
         self.count += 1;
-        self.count - 1
+        let index = self.count - 1;
+        let value_ref = self.values.get_mut(index).unwrap();
+
+        (index, value_ref)
     }
 }
 

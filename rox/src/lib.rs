@@ -2,6 +2,7 @@ mod chunk;
 mod compiler;
 mod error;
 mod object;
+mod object_list;
 mod opcode;
 mod precedence;
 mod raw_stack;
@@ -23,6 +24,7 @@ pub use scanner::Scanner;
 pub use token::*;
 pub use value::*;
 pub use vm::*;
+pub use object_list::ObjectList;
 
 pub static DEBUG_MODE: bool = true;
 pub const STACK_MAX: usize = 256;
