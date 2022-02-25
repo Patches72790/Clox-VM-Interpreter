@@ -11,6 +11,7 @@ mod scanner;
 mod token;
 mod value;
 mod vm;
+mod hashtable;
 
 pub use chunk::*;
 pub use compiler::*;
