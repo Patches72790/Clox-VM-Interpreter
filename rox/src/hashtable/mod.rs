@@ -1,5 +1,8 @@
+mod entry;
+
 use crate::value::Value;
 use crate::RoxString;
+pub use entry::Entry;
 use std::alloc::{alloc, dealloc, realloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
@@ -10,10 +13,10 @@ use std::ptr::{self, NonNull};
 const INITIAL_TABLE_CAPACITY: usize = 8;
 static LOAD_FACTOR: f32 = 0.75;
 
-pub trait RoxMap<K = RoxString, V = Value> {
+pub trait RoxMap<K = RoxString, V = Entry> {
     fn get(&self, key: &K) -> Option<V>;
 
-    fn set(&mut self, key: &K, value: &V);
+    fn set(&mut self, key: &K, value: &Value);
 
     fn contains(&self, key: &K) -> bool;
 
@@ -21,14 +24,27 @@ pub trait RoxMap<K = RoxString, V = Value> {
 }
 
 impl RoxMap for Table {
-    fn get(&self, key: &RoxString) -> Option<Value> {
-        let capacity = self.capacity;
-        let hashed_key = self.hash_key(&key);
-        let bucket = hashed_key % capacity as u64;
+    fn get(&self, key: &RoxString) -> Option<Entry> {
+        let bucket = self.hash_key(&key);
 
-        let value = unsafe { ptr::read(self.table.as_ptr().add(bucket.try_into().unwrap())) };
+        unsafe {
+            let mut try_index = bucket;
+            loop {
+                let try_ptr = self.table.as_ptr().add(try_index.try_into().unwrap());
+                let maybe_value = ptr::read(try_ptr);
 
-        Some(value)
+                match maybe_value {
+                    Some(val) => {
+                        if val.key == *key {
+                            break Some(val);
+                        }
+                    }
+                    None => break None,
+                }
+
+                try_index = (try_index + 1) % (self.capacity as u64);
+            }
+        }
     }
 
     fn set(&mut self, key: &RoxString, value: &Value) {
@@ -36,43 +52,51 @@ impl RoxMap for Table {
             self.grow();
         }
 
-        let capacity = self.capacity;
-        let hashed_key = self.hash_key(&key);
-        let bucket = hashed_key % capacity as u64;
-        println!("Bucket for key {key} is {bucket} with capacity {capacity}");
+        let bucket = self.hash_key(&key);
+        println!(
+            "Bucket for key {key} is {bucket} with capacity {}",
+            self.capacity
+        );
+
+        let new_entry = Entry {
+            key: key.clone(),
+            value: value.clone(),
+        };
 
         // TODO! need to implement linear probing for insertion to deal
         // with duplicate hashed keys
         unsafe {
-            ptr::write(
-                self.table.as_ptr().add(bucket.try_into().unwrap()),
-                value.clone(),
-            );
+            let mut try_index = bucket;
+            loop {
+                let try_ptr = self.table.as_ptr().add(try_index.try_into().unwrap());
+                //let maybe_value = ptr::read(try_ptr);
+
+                if try_ptr.is_null() {
+                    ptr::write(try_ptr, Some(new_entry));
+                    break;
+                }
+
+                try_index = (try_index + 1) % (self.capacity as u64);
+            }
         }
 
         self.length += 1;
     }
 
     fn contains(&self, key: &RoxString) -> bool {
-        let capacity = self.capacity;
-        let hashed_key = self.hash_key(&key);
-        let bucket = hashed_key % capacity as u64;
-
-        let value = unsafe { ptr::read(self.table.as_ptr().add(bucket.try_into().unwrap())) };
-
-        value == value
+        todo!()
     }
 
-    fn remove(&mut self, key: &RoxString) -> Option<Value> {
+    fn remove(&mut self, key: &RoxString) -> Option<Entry> {
         todo!()
     }
 }
 
 pub struct Table {
-    table: NonNull<Value>,
+    table: NonNull<Option<Entry>>,
     capacity: usize,
     length: usize,
-    _marker: PhantomData<Value>,
+    _marker: PhantomData<Option<Entry>>,
 }
 
 impl Table {
@@ -85,10 +109,16 @@ impl Table {
         }
     }
 
+    fn size(&self) -> usize {
+        self.length
+    }
+
     fn hash_key(&self, key: &RoxString) -> u64 {
         let mut hasher = DefaultHasher::new();
         hasher.write(key.clone().as_bytes());
-        hasher.finish()
+        let hashed_key = hasher.finish();
+
+        hashed_key % (self.capacity as u64)
     }
 
     fn load_factor(&self) -> f32 {
@@ -101,12 +131,12 @@ impl Table {
         let (new_capacity, new_layout) = if self.capacity == 0 {
             (
                 INITIAL_TABLE_CAPACITY,
-                Layout::array::<Value>(INITIAL_TABLE_CAPACITY)
+                Layout::array::<Option<Entry>>(INITIAL_TABLE_CAPACITY)
                     .expect("Error initializing layout for table"),
             )
         } else {
             let new_capacity = 2 * self.capacity;
-            let new_layout = Layout::array::<Value>(new_capacity)
+            let new_layout = Layout::array::<Option<Entry>>(new_capacity)
                 .expect("Error increasing size of layout for table");
             (new_capacity, new_layout)
         };
@@ -115,13 +145,13 @@ impl Table {
         let new_ptr = if self.capacity == 0 {
             unsafe { alloc(new_layout) }
         } else {
-            let old_layout = Layout::array::<Value>(self.capacity).unwrap();
+            let old_layout = Layout::array::<Option<Entry>>(self.capacity).unwrap();
             let old_ptr = self.table.as_ptr() as *mut u8;
             unsafe { realloc(old_ptr, old_layout, new_layout.size()) }
         };
 
         // get the pointer for the newly allocated memory here
-        self.table = match NonNull::new(new_ptr as *mut Value) {
+        self.table = match NonNull::new(new_ptr as *mut Option<Entry>) {
             Some(p) => p,
             None => std::alloc::handle_alloc_error(new_layout),
         };
@@ -136,13 +166,13 @@ impl Table {
 
 impl Drop for Table {
     fn drop(&mut self) {
-        let elem_size = mem::size_of::<Value>();
+        let elem_size = mem::size_of::<Option<Entry>>();
 
         if self.capacity != 0 && elem_size != 0 {
             unsafe {
                 dealloc(
                     self.table.as_ptr() as *mut u8,
-                    Layout::array::<Value>(self.capacity).unwrap(),
+                    Layout::array::<Option<Entry>>(self.capacity).unwrap(),
                 );
             }
         }
@@ -171,19 +201,31 @@ mod tests {
     fn test_basic_table_get_and_set() {
         let mut table = Table::new();
         let key = RoxString::new("Hello");
-        let value = Value::Number(RoxNumber(45.0));
         let key2 = RoxString::new("adfasdfasdfafadf");
-        let value2 = Value::Number(RoxNumber(90.0));
         let key3 = RoxString::new("what a world we live in?@?!");
+        let value1 = Value::Number(RoxNumber(45.0));
+        let value2 = Value::Number(RoxNumber(90.0));
         let value3 = Value::Number(RoxNumber(180.0));
+        let entry1 = Entry {
+            key: RoxString::new("Hello"),
+            value: Value::Number(RoxNumber(45.0)),
+        };
+        let entry2 = Entry {
+            key: RoxString::new("adfasdfasdfafadf"),
+            value: Value::Number(RoxNumber(90.0)),
+        };
+        let entry3 = Entry {
+            key: RoxString::new("what a world we live in?@?!"),
+            value: Value::Number(RoxNumber(180.0)),
+        };
 
-        table.set(&key, &value);
+        table.set(&key, &value1);
         table.set(&key2, &value2);
         table.set(&key3, &value3);
 
-        assert_eq!(table.get(&key), Some(value));
-        assert_eq!(table.get(&key2), Some(value2));
-        assert_eq!(table.get(&key3), Some(value3));
+        assert_eq!(table.get(&key), Some(entry1));
+        assert_eq!(table.get(&key2), Some(entry2));
+        assert_eq!(table.get(&key3), Some(entry3));
     }
 
     #[test]
@@ -219,8 +261,12 @@ mod tests {
         table.set(&key2, &value2);
         table.set(&key3, &value3);
 
-        assert!(table.contains(&key));
-        assert!(table.contains(&key2));
-        assert!(table.contains(&key3));
+        table.remove(&key);
+        table.remove(&key2);
+        table.remove(&key3);
+
+        assert!(!table.contains(&key));
+        assert!(!table.contains(&key2));
+        assert!(!table.contains(&key3));
     }
 }

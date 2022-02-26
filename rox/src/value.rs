@@ -7,7 +7,7 @@ pub struct Values {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub enum Value {
     Number(RoxNumber),
     Boolean(bool),
