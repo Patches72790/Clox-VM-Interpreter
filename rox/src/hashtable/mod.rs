@@ -3,7 +3,7 @@ mod entry;
 use crate::value::Value;
 use crate::RoxString;
 pub use entry::Entry;
-use std::alloc::{alloc, dealloc, realloc, Layout};
+use std::alloc::{alloc, alloc_zeroed, dealloc, realloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::marker::PhantomData;
@@ -69,9 +69,9 @@ impl RoxMap for Table {
             let mut try_index = bucket;
             loop {
                 let try_ptr = self.table.as_ptr().add(try_index.try_into().unwrap());
-                //let maybe_value = ptr::read(try_ptr);
+                let check_for_zero_ptr = NonNull::new(try_ptr).unwrap().cast::<u8>();
 
-                if try_ptr.is_null() {
+                if *check_for_zero_ptr.as_ptr() == 0 {
                     ptr::write(try_ptr, Some(new_entry));
                     break;
                 }
@@ -143,7 +143,7 @@ impl Table {
 
         // this allocates memory for the new layout/capacity
         let new_ptr = if self.capacity == 0 {
-            unsafe { alloc(new_layout) }
+            unsafe { alloc_zeroed(new_layout) }
         } else {
             let old_layout = Layout::array::<Option<Entry>>(self.capacity).unwrap();
             let old_ptr = self.table.as_ptr() as *mut u8;
@@ -157,7 +157,13 @@ impl Table {
         };
 
         self.capacity = new_capacity;
+
+        if self.capacity != 0 {
+            self.rehash_entries();
+        }
     }
+
+    fn rehash_entries(&mut self) {}
 
     fn shrink(&mut self) {
         todo!()
