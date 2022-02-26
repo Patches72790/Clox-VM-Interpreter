@@ -192,11 +192,20 @@ impl Table {
     /// hash table and reinserts them into the newly
     /// allocated array with the new capacity.
     fn rehash_entries(&self, new_ptr: *mut Entry, new_capacity: usize) {
-        for entry in self.deref() {
-            if !entry.is_nil() {
-                let mut try_index = self.hash_key_with_capacity(&entry.key, new_capacity);
-                loop {
-                    unsafe {
+        let old_entries = self.table.as_ptr();
+
+        unsafe {
+            // look for entries in former table
+            for current_index in 0..self.capacity {
+                let current_entry = old_entries.add(current_index);
+                let maybe_current_entry = ptr::read(current_entry);
+
+                if !maybe_current_entry.is_nil() {
+                    let mut try_index =
+                        self.hash_key_with_capacity(&maybe_current_entry.key, new_capacity);
+
+                    // find new bucket for current old entry
+                    loop {
                         let ptr_with_offset = new_ptr.add(try_index as usize);
                         let maybe_value = ptr::read(ptr_with_offset);
 
@@ -204,15 +213,15 @@ impl Table {
                             if DEBUG_MODE {
                                 println!(
                                     "New bucket for key {} is index {} with capacity {}",
-                                    entry.key, try_index, new_capacity
+                                    maybe_current_entry.key, try_index, new_capacity
                                 );
                             }
-                            ptr::write(ptr_with_offset, entry.clone());
+                            ptr::write(ptr_with_offset, maybe_current_entry.clone());
                             break;
                         }
-                    }
 
-                    try_index = (try_index + 1) % (new_capacity as u64);
+                        try_index = (try_index + 1) % (new_capacity as u64);
+                    }
                 }
             }
         }
@@ -269,8 +278,8 @@ mod tests {
         let key2 = RoxString::new("world");
         let key3 = RoxString::new("explosives");
         let key4 = RoxString::new("overwatch");
-        let key5 = RoxString::new("anime");
-        let key6 = RoxString::new("however");
+        let key5 = RoxString::new("anime!?!");
+        let key6 = RoxString::new("however!!!");
         let value1 = Value::Number(RoxNumber(45.0));
         let value2 = Value::Number(RoxNumber(90.0));
         let value3 = Value::Number(RoxNumber(180.0));
@@ -318,11 +327,10 @@ mod tests {
         assert_eq!(table.get(&key6), Some(entry6));
 
         assert_eq!(table.size(), 6);
-        assert!(false);
     }
 
     #[test]
-    #[ignore = "not implemented"]
+    //#[ignore = "not implemented"]
     fn test_basic_contains_key() {
         let mut table = Table::new();
         let key = RoxString::new("Hello");
