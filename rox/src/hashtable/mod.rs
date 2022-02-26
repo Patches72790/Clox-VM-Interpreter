@@ -3,7 +3,7 @@ mod entry;
 use crate::value::Value;
 use crate::RoxString;
 pub use entry::Entry;
-use std::alloc::{alloc, alloc_zeroed, dealloc, realloc, Layout};
+use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::marker::PhantomData;
@@ -13,14 +13,14 @@ use std::ptr::{self, NonNull};
 const INITIAL_TABLE_CAPACITY: usize = 8;
 static LOAD_FACTOR: f32 = 0.75;
 
-pub trait RoxMap<K = RoxString, V = Entry> {
-    fn get(&self, key: &K) -> Option<V>;
+pub trait RoxMap<K = RoxString, V = Value, E = Entry> {
+    fn get(&self, key: &K) -> Option<E>;
 
-    fn set(&mut self, key: &K, value: &Value);
+    fn set(&mut self, key: &K, value: &V);
 
     fn contains(&self, key: &K) -> bool;
 
-    fn remove(&mut self, key: &K) -> Option<V>;
+    fn remove(&mut self, key: &K) -> Option<E>;
 }
 
 impl RoxMap for Table {
@@ -69,7 +69,9 @@ impl RoxMap for Table {
             let mut try_index = bucket;
             loop {
                 let try_ptr = self.table.as_ptr().add(try_index.try_into().unwrap());
-                let check_for_zero_ptr = NonNull::new(try_ptr).unwrap().cast::<u8>();
+                let check_for_zero_ptr = NonNull::new(try_ptr)
+                    .expect("Error creating Non-Null pointer from hash table pointer.")
+                    .cast::<u8>();
 
                 if *check_for_zero_ptr.as_ptr() == 0 {
                     ptr::write(try_ptr, Some(new_entry));
@@ -142,31 +144,40 @@ impl Table {
         };
 
         // this allocates memory for the new layout/capacity
-        let new_ptr = if self.capacity == 0 {
-            unsafe { alloc_zeroed(new_layout) }
-        } else {
-            let old_layout = Layout::array::<Option<Entry>>(self.capacity).unwrap();
-            let old_ptr = self.table.as_ptr() as *mut u8;
-            unsafe { realloc(old_ptr, old_layout, new_layout.size()) }
-        };
+        // always allocate the memory to zero
+        let new_ptr = unsafe { alloc_zeroed(new_layout) };
 
         // get the pointer for the newly allocated memory here
         self.table = match NonNull::new(new_ptr as *mut Option<Entry>) {
-            Some(p) => p,
+            Some(p) => {
+                if self.capacity != 0 {
+                    self.rehash_entries(p.as_ptr(), new_capacity);
+                }
+
+                p
+            }
             None => std::alloc::handle_alloc_error(new_layout),
         };
 
         self.capacity = new_capacity;
-
-        if self.capacity != 0 {
-            self.rehash_entries();
-        }
     }
 
-    fn rehash_entries(&mut self) {}
+    /// This method takes the entries from the previous
+    /// hash table and reinserts them into the newly
+    /// allocated array with the new capacity.
+    fn rehash_entries(&mut self, new_ptr: *mut Option<Entry>, new_capacity: usize) {
+        todo!()
+    }
 
     fn shrink(&mut self) {
         todo!()
+    }
+
+    /// Not safe to use since some of the entries may be
+    /// uninitialized or filled with garbage values...
+    fn entries(&self) -> &[Option<Entry>] {
+        todo!()
+        //unsafe { std::slice::from_raw_parts(self.table.as_ptr(), self.capacity) }
     }
 }
 
@@ -201,6 +212,7 @@ mod tests {
         table.grow();
         assert_eq!(table.capacity, 8);
         assert!(table.table != NonNull::dangling());
+        assert_eq!(table.size(), 0);
     }
 
     #[test]
@@ -232,6 +244,7 @@ mod tests {
         assert_eq!(table.get(&key), Some(entry1));
         assert_eq!(table.get(&key2), Some(entry2));
         assert_eq!(table.get(&key3), Some(entry3));
+        assert_eq!(table.size(), 3);
     }
 
     #[test]
