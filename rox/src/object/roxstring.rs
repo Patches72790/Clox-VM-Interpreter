@@ -12,8 +12,16 @@ impl RoxString {
         self.0.len()
     }
 
+    pub fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.0.as_bytes().clone()
+    }
+
+    pub fn raw_parts(&mut self) -> (*mut u8, usize, usize) {
+        (self.0.as_mut_ptr(), self.0.len(), self.0.capacity())
     }
 }
 
