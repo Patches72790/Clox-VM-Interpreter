@@ -11,6 +11,10 @@ impl RoxString {
     pub fn length(&self) -> usize {
         self.0.len()
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
 }
 
 impl Deref for RoxString {

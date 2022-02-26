@@ -1,6 +1,7 @@
 mod chunk;
 mod compiler;
 mod error;
+mod hashtable;
 mod object;
 mod object_list;
 mod opcode;
@@ -11,12 +12,13 @@ mod scanner;
 mod token;
 mod value;
 mod vm;
-mod hashtable;
 
 pub use chunk::*;
 pub use compiler::*;
 pub use error::*;
+pub use hashtable::Table;
 pub use object::*;
+pub use object_list::ObjectList;
 pub use opcode::OpCode;
 pub use precedence::Precedence;
 pub use raw_stack::RawStack as Stack;
@@ -25,7 +27,6 @@ pub use scanner::Scanner;
 pub use token::*;
 pub use value::*;
 pub use vm::*;
-pub use object_list::ObjectList;
 
 pub static DEBUG_MODE: bool = true;
 pub const STACK_MAX: usize = 256;

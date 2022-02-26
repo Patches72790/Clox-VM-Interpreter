@@ -1,3 +1,4 @@
+use crate::hashtable::RoxMap;
 use crate::Chunk;
 use crate::Compiler;
 use crate::ObjectList;
@@ -7,6 +8,7 @@ use crate::RoxObject;
 use crate::RoxString;
 use crate::Scanner;
 use crate::Stack;
+use crate::Table;
 use crate::Value;
 use crate::DEBUG_MODE;
 use crate::{InterpretError, InterpretOk, InterpretResult};
