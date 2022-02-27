@@ -330,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    //#[ignore = "not implemented"]
+    #[ignore = "not implemented"]
     fn test_basic_contains_key() {
         let mut table = Table::new();
         let key = RoxString::new("Hello");
