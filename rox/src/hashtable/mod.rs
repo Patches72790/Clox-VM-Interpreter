@@ -4,7 +4,7 @@ use crate::value::Value;
 use crate::RoxString;
 use crate::DEBUG_MODE;
 pub use entry::Entry;
-use std::alloc::{alloc, alloc_zeroed, dealloc, Layout};
+use std::alloc::{alloc, dealloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::marker::PhantomData;
@@ -63,7 +63,7 @@ impl RoxMap for Table {
 
         let bucket = self.hash_key(&key);
 
-        let new_entry = Entry::new(&key, &value);
+        let new_entry = Entry::new_full(&key, &value);
 
         // linear probing to find open bucket for new entry
         unsafe {
@@ -166,7 +166,7 @@ impl Table {
                 unsafe {
                     for idx in 0..new_capacity {
                         let ptr = p.as_ptr();
-                        *ptr.add(idx) = Entry::new_nil_entry();
+                        *ptr.add(idx) = Entry::new_empty();
                     }
                     if DEBUG_MODE {
                         println!("Initialized table to Nil entries");
@@ -255,8 +255,6 @@ unsafe impl Sync for Table {}
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-
     use crate::RoxNumber;
 
     use super::*;
@@ -287,30 +285,12 @@ mod tests {
         let value5 = Value::Number(RoxNumber(15.0));
         let value6 = Value::Number(RoxNumber(75.0));
 
-        let entry1 = Entry {
-            key: key1.clone(),
-            value: value1.clone(),
-        };
-        let entry2 = Entry {
-            key: key2.clone(),
-            value: value2.clone(),
-        };
-        let entry3 = Entry {
-            key: key3.clone(),
-            value: value3.clone(),
-        };
-        let entry4 = Entry {
-            key: key4.clone(),
-            value: value4.clone(),
-        };
-        let entry5 = Entry {
-            key: key5.clone(),
-            value: value5.clone(),
-        };
-        let entry6 = Entry {
-            key: key6.clone(),
-            value: value6.clone(),
-        };
+        let entry1 = Entry::new_full(&key1, &value1);
+        let entry2 = Entry::new_full(&key2, &value2);
+        let entry3 = Entry::new_full(&key3, &value3);
+        let entry4 = Entry::new_full(&key4, &value4);
+        let entry5 = Entry::new_full(&key5, &value5);
+        let entry6 = Entry::new_full(&key6, &value6);
 
         table.set(&key1, &value1);
         table.set(&key2, &value2);
