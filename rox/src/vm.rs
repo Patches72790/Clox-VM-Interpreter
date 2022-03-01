@@ -1,4 +1,3 @@
-use crate::hashtable::RoxMap;
 use crate::Chunk;
 use crate::Compiler;
 use crate::ObjectList;
@@ -21,6 +20,7 @@ pub struct VM {
     stack: RefCell<Stack>,
     scanner: Scanner,
     objects: Rc<RefCell<ObjectList>>,
+    strings: Table,
 }
 
 impl VM {
@@ -33,6 +33,7 @@ impl VM {
             stack: RefCell::new(Stack::new()),
             scanner: Scanner::new(),
             objects: Rc::clone(&objects),
+            strings: Table::new(),
         }
     }
 

@@ -13,10 +13,10 @@ mod token;
 mod value;
 mod vm;
 
+pub use hashtable::Table;
 pub use chunk::*;
 pub use compiler::*;
 pub use error::*;
-pub use hashtable::Table;
 pub use object::*;
 pub use object_list::ObjectList;
 pub use opcode::OpCode;

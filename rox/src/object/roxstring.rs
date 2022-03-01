@@ -1,7 +1,8 @@
+use std::convert::From;
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RoxString(Rc<String>);
 
 impl RoxString {
@@ -23,6 +24,18 @@ impl RoxString {
 
     pub fn raw_parts(&mut self) -> (*const u8, usize, usize) {
         (self.0.as_ptr(), self.0.len(), self.0.capacity())
+    }
+}
+
+impl From<Rc<String>> for RoxString {
+    fn from(str_rc: Rc<String>) -> Self {
+        RoxString(Rc::clone(&str_rc))
+    }
+}
+
+impl From<&str> for RoxString {
+    fn from(s: &str) -> Self {
+        RoxString(Rc::new(s.to_string()))
     }
 }
 
