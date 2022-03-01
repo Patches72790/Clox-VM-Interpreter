@@ -1,11 +1,12 @@
 use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RoxString(String);
+pub struct RoxString(Rc<String>);
 
 impl RoxString {
-    pub fn new(string: &str) -> RoxString {
-        RoxString(string.to_string())
+    pub fn new(string: Rc<String>) -> RoxString {
+        RoxString(string)
     }
 
     pub fn length(&self) -> usize {
@@ -20,16 +21,16 @@ impl RoxString {
         self.0.as_bytes().clone()
     }
 
-    pub fn raw_parts(&mut self) -> (*mut u8, usize, usize) {
-        (self.0.as_mut_ptr(), self.0.len(), self.0.capacity())
+    pub fn raw_parts(&mut self) -> (*const u8, usize, usize) {
+        (self.0.as_ptr(), self.0.len(), self.0.capacity())
     }
 }
 
 impl Deref for RoxString {
-    type Target = String;
+    type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.as_str()
     }
 }
 
@@ -37,7 +38,12 @@ impl std::ops::Add for RoxString {
     type Output = RoxString;
 
     fn add(self, rhs: Self) -> Self::Output {
-        RoxString::new(&(self.0 + &rhs.0))
+        let str1 = self.0.as_str();
+
+        let mut new_string = String::from(str1);
+        new_string.push_str(rhs.0.as_str());
+
+        RoxString::new(Rc::new(new_string))
     }
 }
 

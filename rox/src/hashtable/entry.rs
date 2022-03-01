@@ -1,5 +1,6 @@
 use crate::value::Value;
 use crate::RoxString;
+use std::rc::Rc;
 
 ///
 /// TODO! Need to think about how to represent
@@ -33,7 +34,7 @@ impl Entry {
     pub fn new_empty() -> Entry {
         Entry {
             state: ENTRY_EMPTY,
-            key: RoxString::new(""),
+            key: RoxString::new(Rc::new("".to_string())),
             value: Value::Nil,
         }
     }

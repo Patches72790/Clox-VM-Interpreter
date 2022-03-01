@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::rc::Rc;
 
 #[derive(PartialEq, Debug)]
 pub struct TokenStream(Vec<Token>);
@@ -166,8 +167,8 @@ pub enum TokenType {
     Less,
     LessEqual,
     // Literals.
-    Identifier(String),
-    StringLiteral(String),
+    Identifier(Rc<String>),
+    StringLiteral(Rc<String>),
     Number(RoxNumber),
     // Keywords.
     And,

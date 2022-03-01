@@ -136,7 +136,7 @@ impl<'a> Compiler<'a> {
             },
             TokenType::StringLiteral(str) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.string(&str[..], line))),
+                prefix_fn: Some(Box::new(move || self.string(str, line))),
                 infix_fn: None,
             },
             TokenType::EOF => ParseRule {
@@ -243,8 +243,9 @@ impl<'a> Compiler<'a> {
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
     }
 
-    fn string(&'a self, string: &str, line: usize) {
-        let new_rox_object = RoxObject::new(ObjectType::ObjString(RoxString::new(string)));
+    fn string(&'a self, string: &Rc<String>, line: usize) {
+        let new_rox_object =
+            RoxObject::new(ObjectType::ObjString(RoxString::new(Rc::clone(string))));
         self.emit_constant(Value::Object(new_rox_object), line);
     }
 
