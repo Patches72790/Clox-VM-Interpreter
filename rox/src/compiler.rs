@@ -245,7 +245,7 @@ impl<'a> Compiler<'a> {
 
     fn string(&'a self, string: &Rc<String>, line: usize) {
         let new_rox_object =
-            RoxObject::new(ObjectType::ObjString(RoxString::new(Rc::clone(string))));
+            RoxObject::new(ObjectType::ObjString(RoxString::new(&Rc::clone(string))));
         self.emit_constant(Value::Object(new_rox_object), line);
     }
 

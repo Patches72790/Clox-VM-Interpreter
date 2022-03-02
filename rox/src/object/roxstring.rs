@@ -3,11 +3,11 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RoxString(Rc<String>);
+pub struct RoxString(String);
 
 impl RoxString {
-    pub fn new(string: Rc<String>) -> RoxString {
-        RoxString(string)
+    pub fn new(string: &str) -> RoxString {
+        RoxString(string.to_string())
     }
 
     pub fn length(&self) -> usize {
@@ -29,13 +29,13 @@ impl RoxString {
 
 impl From<Rc<String>> for RoxString {
     fn from(str_rc: Rc<String>) -> Self {
-        RoxString(Rc::clone(&str_rc))
+        RoxString(str_rc.to_string())
     }
 }
 
 impl From<&str> for RoxString {
     fn from(s: &str) -> Self {
-        RoxString(Rc::new(s.to_string()))
+        RoxString(Rc::new(s.to_string()).to_string())
     }
 }
 
@@ -56,7 +56,7 @@ impl std::ops::Add for RoxString {
         let mut new_string = String::from(str1);
         new_string.push_str(rhs.0.as_str());
 
-        RoxString::new(Rc::new(new_string))
+        RoxString::new(&new_string)
     }
 }
 

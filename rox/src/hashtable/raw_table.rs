@@ -80,14 +80,13 @@ impl RoxMap for Table {
                         );
                     }
                     ptr::write(try_ptr, new_entry);
+                    self.length += 1;
                     break;
                 }
 
                 try_index = (try_index + 1) % self.capacity;
             }
         }
-
-        self.length += 1;
     }
 
     fn contains(&self, key: &RoxString) -> bool {
@@ -121,9 +120,8 @@ impl RoxMap for Table {
                     if DEBUG_MODE {
                         println!("Removing key {} at index {}", maybe_value.key, try_index);
                     }
-                    //mark as deleted then return entry
+                    //mark as deleted but don't decrement size
                     maybe_value.set_deleted();
-                    self.length -= 1;
                     break true;
                 }
                 try_index = (try_index + 1) % self.capacity;
@@ -224,10 +222,13 @@ impl Table {
     /// This method takes the entries from the previous
     /// hash table and reinserts them into the newly
     /// allocated array with the new capacity.
-    fn rehash_entries(&self, new_ptr: *mut Entry, new_capacity: usize) {
+    fn rehash_entries(&mut self, new_ptr: *mut Entry, new_capacity: usize) {
         let old_entries = self.table.as_ptr();
 
         unsafe {
+            // reset length to account for not adding tombstones
+            self.length = 0;
+
             // look for entries in former table
             for current_index in 0..self.capacity {
                 let current_entry = old_entries.add(current_index);
@@ -251,6 +252,7 @@ impl Table {
                                 );
                             }
                             ptr::write(ptr_with_offset, maybe_current_entry.clone());
+                            self.length += 1;
                             break;
                         }
 
@@ -289,11 +291,11 @@ unsafe impl Sync for Table {}
 
 #[cfg(test)]
 mod tests {
-    use crate::RoxNumber;
-
     use super::*;
+    use crate::{ObjectType, RoxNumber, RoxObject};
 
     #[test]
+    //#[ignore = "reason"]
     fn test_new_table() {
         let mut table = Table::new();
 
@@ -304,6 +306,7 @@ mod tests {
     }
 
     #[test]
+    //#[ignore = "reason"]
     fn test_basic_table_get_and_set() {
         let mut table = Table::new();
         let key1 = RoxString::new("Hello");
@@ -344,15 +347,15 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not implemented"]
+    //#[ignore = "not implemented"]
     fn test_basic_contains_key() {
         let mut table = Table::new();
-        let key = RoxString::new("Hello");
+        let key = RoxString::new("Voldemort");
         let value = Value::Number(RoxNumber(45.0));
-        let key2 = RoxString::new("adfasdfasdfafadf");
+        let key2 = RoxString::new("Harry Potter");
         let value2 = Value::Number(RoxNumber(90.0));
-        let key3 = RoxString::new("what a world we live in?@?!");
-        let value3 = Value::Number(RoxNumber(180.0));
+        let key3 = RoxString::new("Albus Dumbledore!!!");
+        let value3 = Value::Object(RoxObject::new(ObjectType::ObjString(RoxString::new("abc"))));
 
         table.set(&key, &value);
         table.set(&key2, &value2);
@@ -367,7 +370,7 @@ mod tests {
     //#[ignore = "not implemented"]
     fn test_basic_remove_key() {
         let mut table = Table::new();
-        let key = RoxString::new("Hello");
+        let key = RoxString::new("hello");
         let value = Value::Number(RoxNumber(45.0));
         let key2 = RoxString::new("adfasdfasdfafadf");
         let value2 = Value::Number(RoxNumber(90.0));
@@ -381,7 +384,6 @@ mod tests {
         assert!(table.remove(&key));
         assert!(table.remove(&key2));
         assert!(table.remove(&key3));
-        assert_eq!(table.size(), 0);
     }
 }
 

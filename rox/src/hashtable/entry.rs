@@ -34,7 +34,7 @@ impl Entry {
     pub fn new_empty() -> Entry {
         Entry {
             state: ENTRY_EMPTY,
-            key: RoxString::new(Rc::new("".to_string())),
+            key: RoxString::new(""),
             value: Value::Nil,
         }
     }
