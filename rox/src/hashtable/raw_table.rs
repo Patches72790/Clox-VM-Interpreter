@@ -1,97 +1,136 @@
 use crate::hashtable::entry::Entry;
-use crate::hashtable::map::RoxMap;
 use crate::value::Value;
 use crate::RoxString;
 use crate::DEBUG_MODE;
-use std::alloc::dealloc;
-use std::alloc::{alloc, Layout};
+use std::alloc::{alloc, dealloc, Layout};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
-use std::ptr::addr_of;
 use std::ptr::{self, NonNull};
 
 const INITIAL_TABLE_CAPACITY: usize = 8;
 static LOAD_FACTOR: f32 = 0.5;
 
-//impl RoxMap for Table {
-//    fn get(&self, key: &RoxString) -> Option<&Entry> {
-//        let bucket = self.hash_key(&key);
-//
-//        unsafe {
-//            let mut try_index: usize = bucket.try_into().unwrap();
-//            loop {
-//                if DEBUG_MODE {
-//                    println!("Searching for key {} at index {}", key, try_index);
-//                }
-//                let try_ptr = self.table.as_ptr().add(try_index);
-//
-//                let maybe_value_ptr = (*addr_of!(try_ptr)).as_ref();
-//
-//                let maybe_value = ptr::read(try_ptr);
-//
-//                println!(
-//                    "Comparing entry key {} to search key {}",
-//                    maybe_value.key, key
-//                );
-//                if maybe_value.key == *key {
-//                    if DEBUG_MODE {
-//                        println!("Found key {} at index {}", maybe_value.key, try_index);
-//                    }
-//                    break Some(maybe_value_ptr.unwrap());
-//                } else if maybe_value.is_nil() {
-//                    break None;
-//                }
-//
-//                try_index = (try_index + 1) % self.capacity;
-//            }
-//        }
-//    }
-//
-//    fn set(&mut self, key: &RoxString, value: &Value) {
-//        if self.length as f32 >= self.load_factor() {
-//            self.grow();
-//        }
-//
-//        let bucket = self.hash_key(&key);
-//
-//        let new_entry = Entry::new_full(&key, &value);
-//
-//        // linear probing to find open bucket for new entry
-//        unsafe {
-//            let mut try_index: usize = bucket.try_into().unwrap();
-//            loop {
-//                let try_ptr = self.table.as_ptr().add(try_index);
-//                let maybe_value = ptr::read(try_ptr);
-//
-//                if maybe_value.is_nil() {
-//                    if DEBUG_MODE {
-//                        println!(
-//                            "Bucket for key {key} is {try_index} with capacity {}",
-//                            self.capacity
-//                        );
-//                    }
-//                    ptr::write(try_ptr, new_entry);
-//                    break;
-//                }
-//
-//                try_index = (try_index + 1) % self.capacity;
-//            }
-//        }
-//
-//        self.length += 1;
-//    }
-//
-//    fn contains(&self, key: &RoxString) -> bool {
-//        todo!()
-//    }
-//
-//    fn remove(&mut self, key: &RoxString) -> Option<&Entry> {
-//        todo!()
-//    }
-//}
+pub trait RoxMap<K = RoxString, V = Value, E = Entry> {
+    fn get(&self, key: &K) -> Option<E>;
+
+    fn set(&mut self, key: &K, value: &V);
+
+    fn contains(&self, key: &K) -> bool;
+
+    fn remove(&mut self, key: &K) -> bool;
+}
+
+impl RoxMap for Table {
+    fn get(&self, key: &RoxString) -> Option<Entry> {
+        let bucket = self.hash_key(&key);
+
+        unsafe {
+            let mut try_index: usize = bucket.try_into().unwrap();
+            loop {
+                if DEBUG_MODE {
+                    println!("Searching for key {} at index {}", key, try_index);
+                }
+                let try_ptr = self.table.as_ptr().add(try_index);
+                let maybe_value = ptr::read(try_ptr);
+
+                println!(
+                    "Comparing entry key {} to search key {}",
+                    maybe_value.key, key
+                );
+
+                // don't return if deleted or empty entry
+                if maybe_value.is_empty() || maybe_value.is_deleted() {
+                    break None;
+                } else if maybe_value.is_full() && maybe_value.key == *key {
+                    if DEBUG_MODE {
+                        println!("Found key {} at index {}", maybe_value.key, try_index);
+                    }
+                    break Some(maybe_value);
+                }
+                try_index = (try_index + 1) % self.capacity;
+            }
+        }
+    }
+
+    fn set(&mut self, key: &RoxString, value: &Value) {
+        if self.length as f32 >= self.load_factor() {
+            self.grow();
+        }
+
+        let bucket = self.hash_key(&key);
+
+        let new_entry = Entry::new_full(&key, &value);
+
+        // linear probing to find open bucket for new entry
+        unsafe {
+            let mut try_index: usize = bucket.try_into().unwrap();
+            loop {
+                let try_ptr = self.table.as_ptr().add(try_index);
+                let maybe_value = ptr::read(try_ptr);
+
+                // don't overwrite if entry is deleted (tombstone)
+                if maybe_value.is_empty() {
+                    if DEBUG_MODE {
+                        println!(
+                            "Bucket for key {key} is {try_index} with capacity {}",
+                            self.capacity
+                        );
+                    }
+                    ptr::write(try_ptr, new_entry);
+                    break;
+                }
+
+                try_index = (try_index + 1) % self.capacity;
+            }
+        }
+
+        self.length += 1;
+    }
+
+    fn contains(&self, key: &RoxString) -> bool {
+        match self.get(key) {
+            Some(_) => true,
+            _ => false,
+        }
+    }
+
+    fn remove(&mut self, key: &RoxString) -> bool {
+        let bucket = self.hash_key(&key);
+
+        unsafe {
+            let mut try_index: usize = bucket.try_into().unwrap();
+            loop {
+                if DEBUG_MODE {
+                    println!("Searching for key {} at index {}", key, try_index);
+                }
+                let try_ptr = self.table.as_ptr().add(try_index);
+                let mut maybe_value = ptr::read(try_ptr);
+
+                println!(
+                    "Comparing entry key {} to search key {}",
+                    maybe_value.key, key
+                );
+
+                // don't return if deleted or empty entry
+                if maybe_value.is_empty() || maybe_value.is_deleted() {
+                    break false;
+                } else if maybe_value.key == *key {
+                    if DEBUG_MODE {
+                        println!("Removing key {} at index {}", maybe_value.key, try_index);
+                    }
+                    //mark as deleted then return entry
+                    maybe_value.set_deleted();
+                    self.length -= 1;
+                    break true;
+                }
+                try_index = (try_index + 1) % self.capacity;
+            }
+        }
+    }
+}
 
 pub struct Table {
     table: NonNull<Entry>,
@@ -194,7 +233,8 @@ impl Table {
                 let current_entry = old_entries.add(current_index);
                 let maybe_current_entry = ptr::read(current_entry);
 
-                if !maybe_current_entry.is_nil() {
+                // don't add nil or tombstoned (deleted) entries to new table
+                if maybe_current_entry.is_full() {
                     let mut try_index =
                         self.hash_key_with_capacity(&maybe_current_entry.key, new_capacity);
 
@@ -203,7 +243,7 @@ impl Table {
                         let ptr_with_offset = new_ptr.add(try_index as usize);
                         let maybe_value = ptr::read(ptr_with_offset);
 
-                        if maybe_value.is_nil() {
+                        if maybe_value.is_empty() {
                             if DEBUG_MODE {
                                 println!(
                                     "New bucket for key {} is index {} with capacity {}",
@@ -249,13 +289,9 @@ unsafe impl Sync for Table {}
 
 #[cfg(test)]
 mod tests {
-    use crate::hashtable::map::RoxMap;
     use crate::RoxNumber;
-    use std::ptr::NonNull;
 
     use super::*;
-    use crate::hashtable::raw_table::Table;
-    use crate::{RoxString, Value};
 
     #[test]
     fn test_new_table() {
@@ -270,12 +306,12 @@ mod tests {
     #[test]
     fn test_basic_table_get_and_set() {
         let mut table = Table::new();
-        let key1 = RoxString::from("Hello");
-        let key2 = RoxString::from("world");
-        let key3 = RoxString::from("explosives");
-        let key4 = RoxString::from("overwatch");
-        let key5 = RoxString::from("anime!?!");
-        let key6 = RoxString::from("however!!!");
+        let key1 = RoxString::new("Hello");
+        let key2 = RoxString::new("world");
+        let key3 = RoxString::new("explosives");
+        let key4 = RoxString::new("overwatch");
+        let key5 = RoxString::new("anime!?!");
+        let key6 = RoxString::new("however!!!");
         let value1 = Value::Number(RoxNumber(45.0));
         let value2 = Value::Number(RoxNumber(90.0));
         let value3 = Value::Number(RoxNumber(180.0));
@@ -297,12 +333,12 @@ mod tests {
         table.set(&key5, &value5);
         table.set(&key6, &value6);
 
-        assert_eq!(table.get(&key1), Some(&entry1));
-        assert_eq!(table.get(&key2), Some(&entry2));
-        assert_eq!(table.get(&key3), Some(&entry3));
-        assert_eq!(table.get(&key4), Some(&entry4));
-        assert_eq!(table.get(&key5), Some(&entry5));
-        assert_eq!(table.get(&key6), Some(&entry6));
+        assert_eq!(table.get(&key1), Some(entry1));
+        assert_eq!(table.get(&key2), Some(entry2));
+        assert_eq!(table.get(&key3), Some(entry3));
+        assert_eq!(table.get(&key4), Some(entry4));
+        assert_eq!(table.get(&key5), Some(entry5));
+        assert_eq!(table.get(&key6), Some(entry6));
 
         assert_eq!(table.size(), 6);
     }
@@ -311,11 +347,11 @@ mod tests {
     #[ignore = "not implemented"]
     fn test_basic_contains_key() {
         let mut table = Table::new();
-        let key = RoxString::from("Hello");
+        let key = RoxString::new("Hello");
         let value = Value::Number(RoxNumber(45.0));
-        let key2 = RoxString::from("adfasdfasdfafadf");
+        let key2 = RoxString::new("adfasdfasdfafadf");
         let value2 = Value::Number(RoxNumber(90.0));
-        let key3 = RoxString::from("what a world we live in?@?!");
+        let key3 = RoxString::new("what a world we live in?@?!");
         let value3 = Value::Number(RoxNumber(180.0));
 
         table.set(&key, &value);
@@ -328,26 +364,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not implemented"]
+    //#[ignore = "not implemented"]
     fn test_basic_remove_key() {
         let mut table = Table::new();
-        let key = RoxString::from("Hello");
+        let key = RoxString::new("Hello");
         let value = Value::Number(RoxNumber(45.0));
-        let key2 = RoxString::from("adfasdfasdfafadf");
+        let key2 = RoxString::new("adfasdfasdfafadf");
         let value2 = Value::Number(RoxNumber(90.0));
-        let key3 = RoxString::from("what a world we live in?@?!");
+        let key3 = RoxString::new("what a world we live in?@?!");
         let value3 = Value::Number(RoxNumber(180.0));
 
         table.set(&key, &value);
         table.set(&key2, &value2);
         table.set(&key3, &value3);
 
-        table.remove(&key);
-        table.remove(&key2);
-        table.remove(&key3);
-
-        assert!(!table.contains(&key));
-        assert!(!table.contains(&key2));
-        assert!(!table.contains(&key3));
+        assert!(table.remove(&key));
+        assert!(table.remove(&key2));
+        assert!(table.remove(&key3));
+        assert_eq!(table.size(), 0);
     }
 }
+

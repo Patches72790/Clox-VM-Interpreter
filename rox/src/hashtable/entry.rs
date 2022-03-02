@@ -47,15 +47,11 @@ impl Entry {
         self.state & ENTRY_DELETED != 0
     }
 
-    pub fn set_full(&mut self) {
-        self.state = ENTRY_FULL;
-    }
-
     pub fn is_full(&self) -> bool {
         self.state & ENTRY_FULL != 0
     }
 
-    pub fn is_nil(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.state & ENTRY_EMPTY != 0
     }
 }
