@@ -3,6 +3,7 @@ use crate::Compiler;
 use crate::ObjectList;
 use crate::ObjectType;
 use crate::OpCode;
+use crate::RcMut;
 use crate::RoxObject;
 use crate::RoxString;
 use crate::Scanner;
@@ -15,12 +16,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct VM {
-    pub chunk: Rc<RefCell<Chunk>>,
+    pub chunk: RcMut<Chunk>,
     ip: RefCell<usize>,
     stack: RefCell<Stack>,
     scanner: Scanner,
     objects: Rc<RefCell<ObjectList>>,
-    strings: Table,
+    strings: RcMut<Table>,
 }
 
 impl VM {
@@ -33,7 +34,7 @@ impl VM {
             stack: RefCell::new(Stack::new()),
             scanner: Scanner::new(),
             objects: Rc::clone(&objects),
-            strings: Table::new(),
+            strings: Rc::new(RefCell::new(Table::new())),
         }
     }
 

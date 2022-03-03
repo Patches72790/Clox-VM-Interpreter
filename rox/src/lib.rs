@@ -10,9 +10,11 @@ mod raw_stack;
 mod run;
 mod scanner;
 mod token;
+mod types;
 mod value;
 mod vm;
 
+pub use types::*;
 pub use chunk::*;
 pub use compiler::*;
 pub use error::*;
