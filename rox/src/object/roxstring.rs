@@ -19,7 +19,7 @@ impl RoxString {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes().clone()
+        &(*self.0.as_bytes())
     }
 
     pub fn raw_parts(&mut self) -> (*const u8, usize, usize) {

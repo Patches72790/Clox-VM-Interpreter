@@ -25,7 +25,7 @@ pub trait RoxMap<K = RoxString, V = Value, E = Entry> {
 
 impl RoxMap for Table {
     fn get(&self, key: &RoxString) -> Option<Entry> {
-        let bucket = self.hash_key(&key);
+        let bucket = self.hash_key(key);
 
         unsafe {
             let mut try_index: usize = bucket.try_into().unwrap();
@@ -60,9 +60,9 @@ impl RoxMap for Table {
             self.grow();
         }
 
-        let bucket = self.hash_key(&key);
+        let bucket = self.hash_key(key);
 
-        let new_entry = Entry::new_full(&key, &value);
+        let new_entry = Entry::new_full(key, value);
 
         // linear probing to find open bucket for new entry
         unsafe {
@@ -97,7 +97,7 @@ impl RoxMap for Table {
     }
 
     fn remove(&mut self, key: &RoxString) -> bool {
-        let bucket = self.hash_key(&key);
+        let bucket = self.hash_key(key);
 
         unsafe {
             let mut try_index: usize = bucket.try_into().unwrap();
@@ -386,4 +386,3 @@ mod tests {
         assert!(table.remove(&key3));
     }
 }
-
