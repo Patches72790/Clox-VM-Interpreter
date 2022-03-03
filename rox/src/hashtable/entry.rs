@@ -11,32 +11,36 @@ use crate::RoxString;
 /// [0000_0001] == Deleted (tombstone)
 ///
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Entry {
+pub struct Entry<K, V> {
     state: u8,
-    pub key: RoxString,
-    pub value: Value,
+    pub key: K,
+    pub value: V,
 }
 
 const ENTRY_FULL: u8 = 0b0000_0001;
 const ENTRY_EMPTY: u8 = 0b0000_0010;
 const ENTRY_DELETED: u8 = 0b0000_0100;
 
-impl Entry {
-    pub fn new_full(key: &RoxString, value: &Value) -> Entry {
+impl<K, V> Entry<K, V>
+where
+    K: Copy,
+    V: Clone,
+{
+    pub fn new_full(key: &K, value: &V) -> Entry<K, V> {
         Entry {
             state: ENTRY_FULL,
-            key: key.clone(),
+            key: *key,
             value: value.clone(),
         }
     }
 
-    pub fn new_empty() -> Entry {
-        Entry {
-            state: ENTRY_EMPTY,
-            key: RoxString::new(""),
-            value: Value::Nil,
-        }
-    }
+    //    pub fn new_empty() -> Entry<K, V> {
+    //        Entry {
+    //            state: ENTRY_EMPTY,
+    //            key,
+    //            value: Value::Nil,
+    //        }
+    //    }
 
     pub fn set_deleted(&mut self) {
         self.state = ENTRY_DELETED;

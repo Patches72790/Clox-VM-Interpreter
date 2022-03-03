@@ -4,6 +4,7 @@ use crate::ObjectList;
 use crate::ObjectType;
 use crate::OpCode;
 use crate::RcMut;
+use crate::RoxMap;
 use crate::RoxObject;
 use crate::RoxString;
 use crate::Scanner;
@@ -21,7 +22,7 @@ pub struct VM {
     stack: RefCell<Stack>,
     scanner: Scanner,
     objects: Rc<RefCell<ObjectList>>,
-    strings: RcMut<Table>,
+    globals: RcMut<Table<RoxString, Value>>,
 }
 
 impl VM {
@@ -34,7 +35,7 @@ impl VM {
             stack: RefCell::new(Stack::new()),
             scanner: Scanner::new(),
             objects: Rc::clone(&objects),
-            strings: Rc::new(RefCell::new(Table::new())),
+            globals: Rc::new(RefCell::new(Table::new())),
         }
     }
 
@@ -42,6 +43,8 @@ impl VM {
         *(self.ip.borrow_mut()) = 0;
         self.chunk.borrow_mut().reset();
         self.objects.borrow_mut().reset();
+
+        let t = self.globals.borrow_mut();
     }
 
     fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
