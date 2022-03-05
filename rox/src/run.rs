@@ -59,6 +59,27 @@ impl Config {
         }
     }
 
+    pub fn run_file_with_filename(&self, pathname: &str) -> Result<(), ConfigError> {
+        // read the file contents into string
+        let file_contents = match fs::read_to_string(pathname) {
+            Ok(content) => content,
+            Err(msg) => {
+                return Err(ConfigError::new(String::from(format!(
+                    "Error reading from file {} with msg: {}",
+                    pathname, msg
+                ))))
+            }
+        };
+
+        if DEBUG_MODE {
+            println!("Read contents of file:\n{file_contents}");
+        }
+
+        // interpret the file
+        self.vm.interpret(&file_contents)?;
+        Ok(())
+    }
+
     pub fn run_file(&self) -> Result<(), ConfigError> {
         // grab filename path if it exists
         let file = match &self.filename {
