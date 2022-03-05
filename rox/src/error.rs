@@ -1,5 +1,6 @@
 pub type InterpretResult = std::result::Result<InterpretOk, InterpretError>;
 
+#[derive(PartialEq, Eq)]
 pub struct InterpretOk;
 
 #[derive(Debug, Clone)]

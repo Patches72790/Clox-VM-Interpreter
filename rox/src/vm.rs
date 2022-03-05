@@ -43,8 +43,6 @@ impl VM {
         *(self.ip.borrow_mut()) = 0;
         self.chunk.borrow_mut().reset();
         self.objects.borrow_mut().reset();
-
-        let t = self.globals.borrow_mut();
     }
 
     fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
@@ -274,141 +272,46 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use super::Value;
     use super::*;
-    use crate::RoxNumber;
-
-    #[test]
-    fn test_vm() {
-        let vm = VM::new();
-        vm.interpret("1 + 2");
-        todo!()
-    }
+    use crate::error;
 
     #[test]
     fn test_negate_op() {
         let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(45.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpNegate, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpReturn(0), 1);
+        let result = vm.interpret("-45").unwrap();
 
-        vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.borrow().values.len(), 1);
-        vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.borrow().values.len(), 1);
-        vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(vm.stack.borrow().values.len(), 0);
+        assert!(result == error::InterpretOk);
     }
 
     #[test]
     fn test_add_binary_op() {
         let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(45.0)), 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(15.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpAdd, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpReturn(12), 1);
 
-        vm.interpret(&"".to_string()).unwrap();
-        vm.interpret(&"".to_string()).unwrap();
-        vm.interpret(&"".to_string()).unwrap();
-        assert_eq!(
-            vm.stack.borrow().values[0],
-            Some(Value::Number(RoxNumber(60.0)))
-        );
-    }
-
-    #[test]
-    fn test_mult_op_1() {
-        let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(1.0)), 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(2.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpMultiply, 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(3.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpAdd, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpReturn(1), 1);
-
-        for _ in 0..vm.chunk.borrow().code.len() - 1 {
-            vm.interpret(&"".to_string()).unwrap();
-        }
-
-        assert_eq!(
-            vm.stack.borrow().values[0],
-            Some(Value::Number(RoxNumber(5.0)))
-        );
+        match vm.interpret("45 + 15") {
+            Err(msg) => panic!("{}", msg),
+            _ => (),
+        };
     }
 
     /// Test 1 + 2 * 3 == 7
     #[test]
-    fn test_mult_op_2() {
+    fn test_mult_op_1() {
         let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(1.0)), 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(2.0)), 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(3.0)), 1);
 
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpMultiply, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpAdd, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpReturn(1), 1);
-
-        for _ in 0..vm.chunk.borrow().code.len() - 1 {
-            vm.interpret(&"".to_string()).unwrap();
+        match vm.interpret("1 + 2 * 3") {
+            Err(msg) => panic!("{}", msg),
+            _ => (),
         }
-
-        assert_eq!(
-            vm.stack.borrow().values[0],
-            Some(Value::Number(RoxNumber(7.0)))
-        );
     }
 
     /// Test 3 - 2 - 1 == 0
     #[test]
     fn test_sub() {
         let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(3.0)), 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(2.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpSubtract, 1);
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(1.0)), 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpSubtract, 1);
-        vm.chunk.borrow_mut().write_chunk(OpCode::OpReturn(1), 1);
 
-        for _ in 0..vm.chunk.borrow().code.len() - 1 {
-            vm.interpret(&"".to_string()).unwrap();
+        match vm.interpret("3 - 2 - 1") {
+            Err(msg) => panic!("{}", msg),
+            _ => (),
         }
-
-        assert_eq!(
-            vm.stack.borrow().values[0],
-            Some(Value::Number(RoxNumber(0.0)))
-        );
-    }
-
-    #[test]
-    fn test_order_operations() {
-        let vm = VM::new();
-        vm.chunk
-            .borrow_mut()
-            .add_constant(Value::Number(RoxNumber(1.0)), 1);
     }
 }
