@@ -1,5 +1,5 @@
 use crate::hashtable::entry::Entry;
-use crate::{hashtable::map::RoxMap, RoxString, Value};
+use crate::hashtable::map::RoxMap;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -16,7 +16,8 @@ where
     }
 
     fn set(&mut self, key: &K, value: &V) {
-        self.inner_table.insert(key.clone(), Entry::new_full(key, value));
+        self.inner_table
+            .insert(key.clone(), Entry::new_full(key, value));
     }
 
     fn remove(&mut self, key: K) -> Option<V> {

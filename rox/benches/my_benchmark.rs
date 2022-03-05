@@ -1,10 +1,11 @@
+use rox::VM;
 use std::rc::Rc;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use rox::{RoxMap, RoxNumber, RoxString, Table};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("basic table", |b| {
+    c.bench_function("Bench table set and remove", |b| {
         b.iter(|| {
             let mut t = Table::new();
             t.set(
@@ -38,6 +39,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             t.remove(Rc::new(RoxString::new("123")));
             t.remove(Rc::new(RoxString::new("456")));
             t.remove(Rc::new(RoxString::new("789")));
+        })
+    });
+
+    c.bench_function("Basic expressions", |b| {
+        b.iter(|| {
+            let vm = VM::new();
+
+            vm.interpret("123 + 456").unwrap();
+            vm.interpret("\"123\" == \"123\"").unwrap();
         })
     });
 }
