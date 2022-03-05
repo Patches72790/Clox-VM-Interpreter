@@ -175,13 +175,35 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    /// A conditional wrapper around advance that checks that
+    /// the current token is of type t_type.
+    fn match_token(&self, t_type: TokenType) -> bool {
+        if !self.check_token(t_type) {
+            return false;
+        }
+        self.advance();
+        true
+    }
+
+    /// Helper function to check that the current token's
+    /// type is equal to t_type.
+    fn check_token(&self, t_type: TokenType) -> bool {
+        self.current
+            .borrow()
+            .expect("Error borrowing next token in parser check!")
+            .token_type
+            == t_type
+    }
+
     fn consume(&self, t_type: TokenType, message: &str) {
         let current_tok = self
             .current
             .borrow()
             .expect("Error consuming current token!");
         if current_tok.token_type == t_type {
-            println!("Consuming token {}", current_tok);
+            if DEBUG_MODE {
+                println!("Consuming token {}", current_tok);
+            }
             self.advance();
             return;
         }
@@ -222,8 +244,80 @@ impl<'a> Compiler<'a> {
         *self.had_error.borrow_mut() = true;
     }
 
+    fn synchronize(&'a self) {
+        *self.panic_mode.borrow_mut() = false;
+        let mut current_token_type = &self
+            .current
+            .borrow()
+            .expect("Error borrowing current token while synchronizing compiler")
+            .token_type;
+
+        while *current_token_type != TokenType::EOF {
+            if self
+                .previous
+                .borrow()
+                .expect("Error borrowing previous token while synchronizing compiler")
+                .token_type
+                == TokenType::Semicolon
+            {
+                return;
+            }
+
+            match current_token_type {
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
+                _ => (),
+            }
+
+            // indiscriminately advance depending on token type until end of statement is found
+            self.advance();
+            current_token_type = &self
+                .current
+                .borrow()
+                .expect("Error borrowing current token while synchronizing compiler")
+                .token_type;
+        }
+    }
+
     fn expression(&'a self) {
         self.parse(&Precedence::PrecAssign);
+    }
+
+    fn declaration(&'a self) {
+        self.statement();
+
+        if *self.panic_mode.borrow() {
+            self.synchronize();
+        }
+    }
+
+    fn statement(&'a self) {
+        if self.match_token(TokenType::Print) {
+            self.print_statement();
+        } else {
+            self.expression_statement();
+        }
+    }
+
+    fn print_statement(&'a self) {
+        self.expression();
+        self.consume(TokenType::Semicolon, "Expected ';' after value.");
+        self.emit_byte(OpCode::OpPrint);
+    }
+
+    fn expression_statement(&'a self) {
+        self.expression();
+        self.consume(
+            TokenType::Semicolon,
+            "Expected ';' after expression statement.",
+        );
+        self.emit_byte(OpCode::OpPop);
     }
 
     fn number(&'a self, num: RoxNumber, line: usize) {
@@ -356,7 +450,10 @@ impl<'a> Compiler<'a> {
         } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
             return;
         } else {
-            self.error("No prefix function parsed.");
+            self.error(&format!(
+                "No prefix function parsed for precedence {}.",
+                precedence
+            ));
             return;
         }
 
@@ -389,8 +486,10 @@ impl<'a> Compiler<'a> {
         // prime pump with token to parse
         self.advance();
 
-        // parse expression first with lowest precedence
-        self.expression();
+        // parse sequence of declarations and statements
+        while !self.match_token(TokenType::EOF) {
+            self.declaration();
+        }
 
         // emit final byte code
         self.end_compiler();

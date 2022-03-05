@@ -90,12 +90,16 @@ impl VM {
 
             match instruction {
                 OpCode::OpReturn(_) => {
-                    let val = self.stack.borrow_mut().pop()?;
-                    if DEBUG_MODE {
-                        println!("Popped: {}", val);
-                    } else {
-                        println!("{}", val);
-                    }
+                    // Nothing for now
+                    //let val = self.stack.borrow_mut().pop()?;
+                    //if DEBUG_MODE {
+                    //    println!("Popped: {}", val);
+                    //} else {
+                    //    println!("{}", val);
+                    //}
+                }
+                OpCode::OpPop => {
+                    self.stack.borrow_mut().pop()?;
                 }
                 OpCode::OpConstant(constants_index) => {
                     let constant =
@@ -177,6 +181,9 @@ impl VM {
                     let a = self.stack.borrow_mut().pop()?; // lhs operand
                     let (a, b) = self.check_for_non_number_types(a, b)?;
                     self.stack.borrow_mut().push(Value::Boolean(a < b)); // push result
+                }
+                OpCode::OpPrint => {
+                    println!("{}", self.stack.borrow_mut().pop()?);
                 }
             }
         }
@@ -278,7 +285,7 @@ mod tests {
     #[test]
     fn test_negate_op() {
         let vm = VM::new();
-        let result = vm.interpret("-45").unwrap();
+        let result = vm.interpret("-45;").unwrap();
 
         assert!(result == error::InterpretOk);
     }
@@ -287,7 +294,7 @@ mod tests {
     fn test_add_binary_op() {
         let vm = VM::new();
 
-        match vm.interpret("45 + 15") {
+        match vm.interpret("45 + 15;") {
             Err(msg) => panic!("{}", msg),
             _ => (),
         };
@@ -298,7 +305,7 @@ mod tests {
     fn test_mult_op_1() {
         let vm = VM::new();
 
-        match vm.interpret("1 + 2 * 3") {
+        match vm.interpret("1 + 2 * 3;") {
             Err(msg) => panic!("{}", msg),
             _ => (),
         }
@@ -309,7 +316,7 @@ mod tests {
     fn test_sub() {
         let vm = VM::new();
 
-        match vm.interpret("3 - 2 - 1") {
+        match vm.interpret("3 - 2 - 1;") {
             Err(msg) => panic!("{}", msg),
             _ => (),
         }

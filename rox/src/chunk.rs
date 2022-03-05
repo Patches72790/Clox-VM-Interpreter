@@ -155,6 +155,8 @@ impl Chunk {
             OpCode::OpGreater => Chunk::simple_instruction("OP_GREATER"),
             OpCode::OpEqual => Chunk::simple_instruction("OP_EQUAL"),
             OpCode::OpLess => Chunk::simple_instruction("OP_LESS"),
+            OpCode::OpPrint => Chunk::simple_instruction("OP_PRINT"),
+            OpCode::OpPop => Chunk::simple_instruction("OP_POP"),
         };
     }
 
@@ -172,43 +174,14 @@ impl Chunk {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::RoxNumber;
-//    #[test]
-//    fn test_write_chunk() {
-//        let mut my_c = Chunk::new();
-//
-//        my_c.write_chunk(OpCode::OpReturn(8), 1);
-//        my_c.write_chunk(OpCode::OpReturn(22), 1);
-//        my_c.write_chunk(OpCode::OpReturn(55), 1);
-//        my_c.add_constant(Value::Number(RoxNumber(69.0)), 2);
-//        my_c.add_constant(Value::Number(RoxNumber(42.0)), 2);
-//
-//        assert_eq!(my_c.count, 5);
-//        assert_eq!(my_c.lines.len(), 2);
-//    }
-//
-//    #[test]
-//    fn test_write_constants() {
-//        let mut my_c = Chunk::new();
-//
-//        my_c.add_constant(Value::Number(RoxNumber(69.0)), 1);
-//        my_c.add_constant(Value::Number(RoxNumber(42.0)), 1);
-//        my_c.add_constant(Value::Number(RoxNumber(35.0)), 1);
-//
-//        assert_eq!(my_c.constants.values.len(), 3);
-//    }
-//
-//    #[test]
-//    fn test_disassemble_chunk() {
-//        let mut my_c = Chunk::new();
-//
-//        my_c.write_chunk(OpCode::OpReturn(8), 1);
-//        my_c.write_chunk(OpCode::OpReturn(22), 1);
-//        my_c.write_chunk(OpCode::OpReturn(55), 1);
-//        my_c.add_constant(Value::Number(RoxNumber(69.0)), 2);
-//        my_c.add_constant(Value::Number(RoxNumber(42.0)), 2);
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_write_chunk() {}
+
+    #[test]
+    fn test_write_constants() {}
+
+    #[test]
+    fn test_disassemble_chunk() {}
+}
