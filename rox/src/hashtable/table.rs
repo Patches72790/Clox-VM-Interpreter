@@ -5,7 +5,7 @@ use std::hash::Hash;
 
 impl<K, V> RoxMap<K, V> for StdTable<K, V>
 where
-    K: Hash + Eq + Copy,
+    K: Hash + Eq + Clone,
     V: Clone,
 {
     fn get(&self, key: K) -> Option<&V> {
@@ -16,7 +16,7 @@ where
     }
 
     fn set(&mut self, key: &K, value: &V) {
-        self.inner_table.insert(*key, Entry::new_full(key, value));
+        self.inner_table.insert(key.clone(), Entry::new_full(key, value));
     }
 
     fn remove(&mut self, key: K) -> Option<V> {

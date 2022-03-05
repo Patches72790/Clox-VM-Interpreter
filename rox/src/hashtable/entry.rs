@@ -23,13 +23,13 @@ const ENTRY_DELETED: u8 = 0b0000_0100;
 
 impl<K, V> Entry<K, V>
 where
-    K: Copy,
+    K: Clone,
     V: Clone,
 {
     pub fn new_full(key: &K, value: &V) -> Entry<K, V> {
         Entry {
             state: ENTRY_FULL,
-            key: *key,
+            key: key.clone(),
             value: value.clone(),
         }
     }
