@@ -290,11 +290,18 @@ impl<'a> Compiler<'a> {
     }
 
     fn declaration(&'a self) {
+        if self.match_token(TokenType::Var) {
+            self.var_declaration();
+        }
         self.statement();
 
         if *self.panic_mode.borrow() {
             self.synchronize();
         }
+    }
+
+    fn var_declaration(&'a self) {
+        let global = self.parse_variable("Expect variable name.");
     }
 
     fn statement(&'a self) {
@@ -480,6 +487,11 @@ impl<'a> Compiler<'a> {
                 return;
             }
         }
+    }
+
+    fn parse_variable(&'a self, msg: &str) {
+        // TODO -- how to make parse variable work here without consuming blank ID?
+        self.consume(TokenType::Identifier(Rc::new("".to_string())), msg);
     }
 
     pub fn compile(&'a self) -> bool {
