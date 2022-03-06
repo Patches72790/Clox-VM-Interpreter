@@ -14,7 +14,6 @@ mod types;
 mod value;
 mod vm;
 
-pub use types::*;
 pub use chunk::*;
 pub use compiler::*;
 pub use error::*;
@@ -28,8 +27,9 @@ pub use raw_stack::RawStack as Stack;
 pub use run::*;
 pub use scanner::Scanner;
 pub use token::*;
+pub use types::*;
 pub use value::*;
 pub use vm::*;
 
-pub static DEBUG_MODE: bool = true;
+pub static DEBUG_MODE: bool = false;
 pub const STACK_MAX: usize = 256;

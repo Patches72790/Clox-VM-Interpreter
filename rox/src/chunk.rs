@@ -3,6 +3,11 @@ use crate::{ObjectList, ObjectType, OpCode, RoxObject, RoxString};
 use crate::{Value, Values};
 use std::cell::RefCell;
 use std::rc::Rc;
+use string_interner::StringInterner;
+
+thread_local! {
+    static INTERNER: StringInterner = StringInterner::default();
+}
 
 ///The Chunk type corresponds to the basic block
 ///of code with a size of count and capacity.
@@ -138,7 +143,7 @@ impl Chunk {
         string_value: &RoxString,
         line: usize,
         variable_op: VariableOp,
-    ) {
+    ) -> usize {
         let (index, value_ref) =
             self.constants
                 .write_value(Value::Object(RoxObject::new(ObjectType::ObjString(
@@ -151,9 +156,12 @@ impl Chunk {
 
         match variable_op {
             VariableOp::Get => self.write_chunk(OpCode::OpGetGlobal(index), line),
-            VariableOp::Define => self.write_chunk(OpCode::OpDefineGlobal(index), line),
             VariableOp::Set => self.write_chunk(OpCode::OpSetGlobal(index), line),
+            VariableOp::Define => (), // define globals opcode defers
+                                      //writing opcode until after parsing expression
         }
+
+        index
     }
 
     ///Helper function for disassembling bytecode instructions instructions

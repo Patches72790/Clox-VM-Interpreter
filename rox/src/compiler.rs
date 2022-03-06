@@ -17,7 +17,7 @@ pub struct Compiler<'a> {
     pub panic_mode: RefCell<bool>,
 }
 
-type ParseFn<'a> = Box<dyn FnOnce() + 'a>;
+type ParseFn<'a> = Box<dyn FnOnce(bool) + 'a>;
 
 struct ParseRule<'a> {
     precedence: Precedence,
@@ -47,82 +47,84 @@ impl<'a> Compiler<'a> {
         match t_type {
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
                 prefix_fn: None,
             },
             TokenType::Minus => ParseRule {
                 precedence: Precedence::PrecTerm,
-                infix_fn: Some(Box::new(|| self.binary())),
-                prefix_fn: Some(Box::new(|| self.unary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                prefix_fn: Some(Box::new(|can_assign| self.unary(can_assign))),
             },
             TokenType::Star => ParseRule {
                 precedence: Precedence::PrecFactor,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::Slash => ParseRule {
                 precedence: Precedence::PrecFactor,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::Number(num) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.number(*num, line))),
+                prefix_fn: Some(Box::new(move |can_assign| {
+                    self.number(*num, line, can_assign)
+                })),
                 infix_fn: None,
             },
             TokenType::True => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.literal())),
+                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
                 infix_fn: None,
             },
             TokenType::False => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.literal())),
+                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
                 infix_fn: None,
             },
             TokenType::Nil => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.literal())),
+                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
                 infix_fn: None,
             },
             TokenType::Bang => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.unary())),
+                prefix_fn: Some(Box::new(|can_assign| self.unary(can_assign))),
                 infix_fn: None,
             },
             TokenType::BangEqual => ParseRule {
                 precedence: Precedence::PrecEquality,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::EqualEqual => ParseRule {
                 precedence: Precedence::PrecEquality,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::Greater => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::GreaterEqual => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::Less => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::LessEqual => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|| self.binary())),
+                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
             },
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|| self.grouping())),
+                prefix_fn: Some(Box::new(|can_assign| self.grouping(can_assign))),
                 infix_fn: None,
             },
             TokenType::RightParen => ParseRule {
@@ -137,12 +139,16 @@ impl<'a> Compiler<'a> {
             },
             TokenType::Identifier(id) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.variable(id, line))),
+                prefix_fn: Some(Box::new(move |can_assign| {
+                    self.variable(id, line, can_assign)
+                })),
                 infix_fn: None,
             },
             TokenType::StringLiteral(str) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move || self.string(str, line))),
+                prefix_fn: Some(Box::new(move |can_assign| {
+                    self.string(str, line, can_assign)
+                })),
                 infix_fn: None,
             },
             TokenType::EOF => ParseRule {
@@ -307,7 +313,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn var_declaration(&'a self) {
-        self.parse_variable("Expect variable name.");
+        let index = self.parse_variable("Expect variable name.");
 
         if self.match_token(TokenType::Equal) {
             self.expression();
@@ -319,6 +325,8 @@ impl<'a> Compiler<'a> {
             TokenType::Semicolon,
             "Expect ';' after variable declaration.",
         );
+
+        self.emit_byte(OpCode::OpDefineGlobal(index));
     }
 
     fn statement(&'a self) {
@@ -344,7 +352,7 @@ impl<'a> Compiler<'a> {
         self.emit_byte(OpCode::OpPop);
     }
 
-    fn number(&'a self, num: RoxNumber, line: usize) {
+    fn number(&'a self, num: RoxNumber, line: usize, _can_assign: bool) {
         self.emit_constant(Value::Number(num), line);
     }
 
@@ -361,26 +369,27 @@ impl<'a> Compiler<'a> {
         string_value: &Rc<RoxString>,
         line: usize,
         variable_op: VariableOp,
-    ) {
+    ) -> usize {
         // need to write string to constants array in chunk
         self.chunk
             .borrow_mut()
-            .add_identifier_constant(string_value, line, variable_op);
+            .add_identifier_constant(string_value, line, variable_op)
     }
 
-    fn grouping(&'a self) {
+    fn grouping(&'a self, _can_assign: bool) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
     }
 
-    fn string(&'a self, string: &Rc<RoxString>, line: usize) {
+    fn string(&'a self, string: &Rc<RoxString>, line: usize, _can_assign: bool) {
         let new_rox_object =
             RoxObject::new(ObjectType::ObjString(RoxString::new(&Rc::clone(string))));
         self.emit_constant(Value::Object(new_rox_object), line);
     }
 
-    fn variable(&'a self, id: &Rc<RoxString>, line: usize) {
-        if self.match_token(TokenType::Equal) {
+    fn variable(&'a self, id: &Rc<RoxString>, line: usize, can_assign: bool) {
+        if can_assign && self.match_token(TokenType::Equal) {
+            self.expression();
             self.chunk
                 .borrow_mut()
                 .add_identifier_constant(id, line, VariableOp::Set);
@@ -391,7 +400,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn literal(&'a self) {
+    fn literal(&'a self, _can_assign: bool) {
         match self
             .previous
             .borrow()
@@ -405,7 +414,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn unary(&'a self) {
+    fn unary(&'a self, _can_assign: bool) {
         // find type
         let operator_type = self
             .previous
@@ -426,7 +435,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn binary(&'a self) {
+    fn binary(&'a self, _can_assign: bool) {
         let operator_type = self
             .previous
             .borrow()
@@ -492,9 +501,11 @@ impl<'a> Compiler<'a> {
             )
             .prefix_fn;
 
+        let can_assign = precedence <= &Precedence::PrecAssign;
+
         // call prefix parsing function if present
         if let Some(p_fn) = prefix_fn {
-            p_fn();
+            p_fn(can_assign);
         } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
             return;
         } else {
@@ -520,17 +531,21 @@ impl<'a> Compiler<'a> {
                 .infix_fn;
 
             if let Some(in_fn) = infix_fn {
-                in_fn();
+                in_fn(can_assign);
             } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
                 return;
             } else {
                 self.error("No infix function parsed.");
                 return;
             }
+
+            if can_assign && self.match_token(TokenType::Equal) {
+                self.error("Invalid assignment target.");
+            }
         }
     }
 
-    fn parse_variable(&'a self, msg: &str) {
+    fn parse_variable(&'a self, msg: &str) -> usize {
         // TODO -- how to make parse variable work here without consuming blank ID?
         self.consume(TokenType::Identifier(Rc::new(RoxString::new(""))), msg);
 
@@ -546,7 +561,7 @@ impl<'a> Compiler<'a> {
             ),
         };
 
-        self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define);
+        self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define)
     }
 
     pub fn compile(&'a self) -> bool {
