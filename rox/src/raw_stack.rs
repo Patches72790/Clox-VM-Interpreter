@@ -24,7 +24,7 @@ impl RawStack {
         self.stack_ptr = self.values.as_mut_ptr();
     }
 
-    pub fn peek(&self, distance: usize) -> Result<Value, ()> {
+    pub fn peek(&self, distance: usize) -> Result<Value, &'static str> {
         unsafe {
             let d = (self.size - distance) as isize;
             if d < 0 {

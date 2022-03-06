@@ -1,6 +1,8 @@
 use std::ops::Deref;
 use std::rc::Rc;
 
+use crate::RoxString;
+
 #[derive(PartialEq, Debug)]
 pub struct TokenStream(Vec<Token>);
 
@@ -143,7 +145,7 @@ impl Deref for RoxNumber {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -167,8 +169,8 @@ pub enum TokenType {
     Less,
     LessEqual,
     // Literals.
-    Identifier(Rc<String>),
-    StringLiteral(Rc<String>),
+    Identifier(Rc<RoxString>),
+    StringLiteral(Rc<RoxString>),
     Number(RoxNumber),
     // Keywords.
     And,
@@ -190,4 +192,10 @@ pub enum TokenType {
 
     Error(String),
     EOF,
+}
+
+impl PartialEq for TokenType {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
 }

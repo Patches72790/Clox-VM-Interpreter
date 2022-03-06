@@ -9,4 +9,6 @@ fn test_basic_expression() {
         Err(msg) => panic!("{}", msg),
         _ => (),
     };
+
+    assert!(false);
 }

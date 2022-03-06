@@ -1,3 +1,4 @@
+use crate::opcode::VariableOp;
 use crate::{
     Chunk, ObjectType, OpCode, Precedence, RoxNumber, RoxObject, RoxString, Token, TokenType,
     Value, DEBUG_MODE,
@@ -132,6 +133,11 @@ impl<'a> Compiler<'a> {
             TokenType::Semicolon => ParseRule {
                 precedence: Precedence::PrecNone,
                 prefix_fn: None,
+                infix_fn: None,
+            },
+            TokenType::Identifier(id) => ParseRule {
+                precedence: Precedence::PrecNone,
+                prefix_fn: Some(Box::new(move || self.variable(id, line))),
                 infix_fn: None,
             },
             TokenType::StringLiteral(str) => ParseRule {
@@ -292,16 +298,27 @@ impl<'a> Compiler<'a> {
     fn declaration(&'a self) {
         if self.match_token(TokenType::Var) {
             self.var_declaration();
+        } else {
+            self.statement();
         }
-        self.statement();
-
         if *self.panic_mode.borrow() {
             self.synchronize();
         }
     }
 
     fn var_declaration(&'a self) {
-        let global = self.parse_variable("Expect variable name.");
+        self.parse_variable("Expect variable name.");
+
+        if self.match_token(TokenType::Equal) {
+            self.expression();
+        } else {
+            self.emit_byte(OpCode::OpNil);
+        }
+
+        self.consume(
+            TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        );
     }
 
     fn statement(&'a self) {
@@ -339,15 +356,39 @@ impl<'a> Compiler<'a> {
         self.chunk.borrow_mut().add_constant(value, line);
     }
 
+    fn emit_identifier_constant(
+        &self,
+        string_value: &Rc<RoxString>,
+        line: usize,
+        variable_op: VariableOp,
+    ) {
+        // need to write string to constants array in chunk
+        self.chunk
+            .borrow_mut()
+            .add_identifier_constant(string_value, line, variable_op);
+    }
+
     fn grouping(&'a self) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
     }
 
-    fn string(&'a self, string: &Rc<String>, line: usize) {
+    fn string(&'a self, string: &Rc<RoxString>, line: usize) {
         let new_rox_object =
             RoxObject::new(ObjectType::ObjString(RoxString::new(&Rc::clone(string))));
         self.emit_constant(Value::Object(new_rox_object), line);
+    }
+
+    fn variable(&'a self, id: &Rc<RoxString>, line: usize) {
+        if self.match_token(TokenType::Equal) {
+            self.chunk
+                .borrow_mut()
+                .add_identifier_constant(id, line, VariableOp::Set);
+        } else {
+            self.chunk
+                .borrow_mut()
+                .add_identifier_constant(id, line, VariableOp::Get);
+        }
     }
 
     fn literal(&'a self) {
@@ -491,7 +532,21 @@ impl<'a> Compiler<'a> {
 
     fn parse_variable(&'a self, msg: &str) {
         // TODO -- how to make parse variable work here without consuming blank ID?
-        self.consume(TokenType::Identifier(Rc::new("".to_string())), msg);
+        self.consume(TokenType::Identifier(Rc::new(RoxString::new(""))), msg);
+
+        let previous = self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token when parsing variable.");
+        let previous_token_value = match &previous.token_type {
+            TokenType::Identifier(str) => str,
+            _ => panic!(
+                "Error did not find identifier when parsing previous token for variable {}",
+                previous
+            ),
+        };
+
+        self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define);
     }
 
     pub fn compile(&'a self) -> bool {

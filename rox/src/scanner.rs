@@ -1,6 +1,6 @@
 use crate::{
     token::{Token, TokenType},
-    RoxNumber, TokenStream, DEBUG_MODE,
+    RoxNumber, RoxString, TokenStream, DEBUG_MODE,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -57,7 +57,7 @@ impl Scanner {
             return TokenType::Error(String::from("Unterminated string literal"));
         }
 
-        TokenType::StringLiteral(Rc::new(result))
+        TokenType::StringLiteral(Rc::new(RoxString::new(&result)))
     }
 
     fn number(peeker: &mut Peeker, ch: &char) -> TokenType {
@@ -102,7 +102,7 @@ impl Scanner {
                 (.., '!') => TokenType::Error(
                     "Error grabbing next char after 'f' in scanning identifier.".to_string(),
                 ),
-                _ => TokenType::Identifier(Rc::new(id.to_string())),
+                _ => TokenType::Identifier(Rc::new(RoxString::new(id))),
             },
             (.., 't') => match id_chars.next().unwrap_or((0, '!')) {
                 (.., 'h') => Scanner::check_keyword(&mut id_chars, 2, "is", id, TokenType::This),
@@ -110,12 +110,12 @@ impl Scanner {
                 (.., '!') => TokenType::Error(
                     "Error grabbing next char after 't' in scanning identifier".to_string(),
                 ),
-                _ => TokenType::Identifier(Rc::new(id.to_string())),
+                _ => TokenType::Identifier(Rc::new(RoxString::new(id))),
             },
             (.., '!') => {
                 TokenType::Error("Error grabbing first char in scanning identifer".to_string())
             }
-            _ => TokenType::Identifier(Rc::new(id.to_string())),
+            _ => TokenType::Identifier(Rc::new(RoxString::new(id))),
         }
     }
 
@@ -134,7 +134,7 @@ impl Scanner {
         if result == suffix && char_peeker.next() == None {
             t_type
         } else {
-            TokenType::Identifier(Rc::new(original_str.to_string()))
+            TokenType::Identifier(Rc::new(RoxString::new(original_str)))
         }
     }
 

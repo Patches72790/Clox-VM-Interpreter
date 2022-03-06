@@ -1,4 +1,5 @@
-use crate::{ObjectList, OpCode};
+use crate::opcode::VariableOp;
+use crate::{ObjectList, ObjectType, OpCode, RoxObject, RoxString};
 use crate::{Value, Values};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -132,6 +133,29 @@ impl Chunk {
         self.write_chunk(OpCode::OpConstant(index), line);
     }
 
+    pub fn add_identifier_constant(
+        &mut self,
+        string_value: &RoxString,
+        line: usize,
+        variable_op: VariableOp,
+    ) {
+        let (index, value_ref) =
+            self.constants
+                .write_value(Value::Object(RoxObject::new(ObjectType::ObjString(
+                    string_value.clone(),
+                ))));
+
+        if let Value::Object(obj) = value_ref {
+            self.objects.borrow_mut().add_object(obj);
+        }
+
+        match variable_op {
+            VariableOp::Get => self.write_chunk(OpCode::OpGetGlobal(index), line),
+            VariableOp::Define => self.write_chunk(OpCode::OpDefineGlobal(index), line),
+            VariableOp::Set => self.write_chunk(OpCode::OpSetGlobal(index), line),
+        }
+    }
+
     ///Helper function for disassembling bytecode instructions instructions
     ///in the bytecode vector for Chunk.
     pub fn disassemble_instruction(instr: &OpCode, offset: usize, chunk: &Chunk) {
@@ -157,6 +181,9 @@ impl Chunk {
             OpCode::OpLess => Chunk::simple_instruction("OP_LESS"),
             OpCode::OpPrint => Chunk::simple_instruction("OP_PRINT"),
             OpCode::OpPop => Chunk::simple_instruction("OP_POP"),
+            OpCode::OpDefineGlobal(_) => Chunk::simple_instruction("OP_DEFINE_GLOBAL"),
+            OpCode::OpGetGlobal(_) => Chunk::simple_instruction("OP_GET_GLOBAL"),
+            OpCode::OpSetGlobal(_) => Chunk::simple_instruction("OP_SET_GLOBAL"),
         };
     }
 

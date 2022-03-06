@@ -2,9 +2,9 @@ use crate::{RoxString, Value};
 use std::rc::Rc;
 
 pub trait RoxMap<K = Rc<RoxString>, V = Value> {
-    fn get(&self, key: K) -> Option<&V>;
+    fn get(&self, key: &K) -> Option<&V>;
 
-    fn set(&mut self, key: &K, value: &V);
+    fn set(&mut self, key: &K, value: &V) -> bool;
 
     fn contains(&self, key: K) -> bool;
 

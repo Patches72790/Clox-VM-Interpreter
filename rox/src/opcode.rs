@@ -20,6 +20,9 @@ pub enum OpCode {
     OpLess,
     OpPrint,
     OpPop,
+    OpDefineGlobal(usize), // stores the index of the string identifier in the constants array
+    OpGetGlobal(usize),
+    OpSetGlobal(usize),
 }
 
 impl std::fmt::Display for OpCode {
@@ -41,6 +44,15 @@ impl std::fmt::Display for OpCode {
             OpCode::OpLess => write!(f, "OP_LESS"),
             OpCode::OpPrint => write!(f, "OP_PRINT"),
             OpCode::OpPop => write!(f, "OP_POP"),
+            OpCode::OpDefineGlobal(_) => write!(f, "OP_DEFINE_GLOBAL"),
+            OpCode::OpGetGlobal(_) => write!(f, "OP_GET_GLOBAL"),
+            OpCode::OpSetGlobal(_) => write!(f, "OP_SET_GLOBAL"),
         }
     }
+}
+
+pub enum VariableOp {
+    Get,
+    Set,
+    Define,
 }

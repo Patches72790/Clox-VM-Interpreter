@@ -1,3 +1,4 @@
+use crate::hashtable::Entry;
 use crate::Chunk;
 use crate::Compiler;
 use crate::ObjectList;
@@ -43,6 +44,7 @@ impl VM {
         *(self.ip.borrow_mut()) = 0;
         self.chunk.borrow_mut().reset();
         self.objects.borrow_mut().reset();
+        self.stack.borrow_mut().reset_stack();
     }
 
     fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
@@ -58,6 +60,26 @@ impl VM {
             Some(val.clone())
         } else {
             None
+        }
+    }
+
+    fn read_string(values: &Vec<Value>, str_id_index: usize) -> RoxString {
+        let string_id = VM::read_constant(values, str_id_index).expect(&format!(
+            "String id constant at index {str_id_index} did not return expected value!"
+        ));
+
+        match string_id {
+            Value::Object(obj) => match obj.object_type {
+                ObjectType::ObjString(string) => string,
+                _ => panic!(
+                    "Error Object String type was not located at index {}",
+                    str_id_index
+                ),
+            },
+            _ => panic!(
+                "Error Value object was not located at index {}",
+                str_id_index
+            ),
         }
     }
 
@@ -112,6 +134,52 @@ impl VM {
                                 .as_str(),
                             );
                     self.stack.borrow_mut().push(constant);
+                }
+                OpCode::OpDefineGlobal(str_id_index) => {
+                    let string_id =
+                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+
+                    if DEBUG_MODE {
+                        println!("Added id {string_id} to globals table");
+                    }
+
+                    let global_rhs = self.stack.borrow_mut().pop()?;
+                    self.globals.borrow_mut().set(&string_id, &global_rhs);
+                }
+                OpCode::OpSetGlobal(str_id_index) => {
+                    let string_id =
+                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+
+                    let rhs = self.stack.borrow_mut().peek(0)?;
+                    match self.globals.borrow().get(&string_id) {
+                        Some(_) => {
+                            return Err(InterpretError::RuntimeError(format!(
+                                "Undefined variable {}",
+                                string_id
+                            )))
+                        }
+                        None => self.globals.borrow_mut().set(&string_id, &rhs),
+                    };
+                }
+                OpCode::OpGetGlobal(str_id_index) => {
+                    let string_id =
+                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+
+                    let value = &match self.globals.borrow_mut().get(&string_id) {
+                        Some(val) => val.clone(),
+                        None => {
+                            return Err(InterpretError::RuntimeError(format!(
+                                "Undefined variable '{}'.",
+                                string_id
+                            )))
+                        }
+                    };
+
+                    self.stack.borrow_mut().push(value.clone());
+
+                    if DEBUG_MODE {
+                        println!("Read global id {value} from globals table");
+                    }
                 }
                 OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
                 OpCode::OpFalse => self.stack.borrow_mut().push(Value::Boolean(false)),

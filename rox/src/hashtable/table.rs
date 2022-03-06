@@ -8,16 +8,21 @@ where
     K: Hash + Eq + Clone,
     V: Clone,
 {
-    fn get(&self, key: K) -> Option<&V> {
+    fn get(&self, key: &K) -> Option<&V> {
         match self.inner_table.get(&key) {
             Some(entry) => Some(&entry.value),
             _ => None,
         }
     }
 
-    fn set(&mut self, key: &K, value: &V) {
-        self.inner_table
-            .insert(key.clone(), Entry::new_full(key, value));
+    fn set(&mut self, key: &K, value: &V) -> bool {
+        match self
+            .inner_table
+            .insert(key.clone(), Entry::new_full(key, value))
+        {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     fn remove(&mut self, key: K) -> Option<V> {
