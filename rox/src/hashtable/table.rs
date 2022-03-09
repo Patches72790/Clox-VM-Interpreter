@@ -37,6 +37,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct StdTable<K, V> {
     inner_table: HashMap<K, Entry<K, V>>,
 }

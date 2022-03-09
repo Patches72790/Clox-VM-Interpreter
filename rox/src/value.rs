@@ -1,10 +1,11 @@
-use crate::{ObjectType, RoxNumber, RoxObject};
+use crate::{ObjectType, RoxMap, RoxNumber, RoxObject, RoxString, Table};
 use std::ops;
 
 #[derive(Debug)]
 pub struct Values {
     pub count: usize,
     pub values: Vec<Value>,
+    globals: Table<RoxString, usize>,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -21,6 +22,7 @@ impl Values {
         Values {
             count: 0,
             values: vec![],
+            globals: Table::new(),
         }
     }
 
@@ -29,6 +31,29 @@ impl Values {
      * was added for use in the chunk instruction block.
      */
     pub fn write_value(&mut self, value: Value) -> (usize, &mut Value) {
+        // keep a globals map so as not to duplicate globals in values array
+        match &value {
+            Value::Object(obj) => match &obj.object_type {
+                ObjectType::ObjString(rox_string) => match self.globals.get(&rox_string) {
+                    Some(idx) => {
+                        let found_global = self.values.get_mut(*idx).unwrap();
+                        return (*idx, found_global);
+                    }
+                    None => {
+                        self.values.push(value.clone());
+                        self.count += 1;
+                        let index = self.count - 1;
+                        let value_ref = self.values.get_mut(index).unwrap();
+
+                        self.globals.set(&rox_string, &index);
+                        return (index, value_ref);
+                    }
+                },
+                _ => (),
+            },
+            _ => (),
+        };
+
         self.values.push(value);
         self.count += 1;
         let index = self.count - 1;
