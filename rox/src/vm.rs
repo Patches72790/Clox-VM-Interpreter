@@ -23,12 +23,17 @@ pub struct VM {
     scanner: Scanner,
     objects: Rc<RefCell<ObjectList>>,
     globals: RcMut<Table<RoxString, Value>>,
+    global_indices: RcMut<Table<RoxString, usize>>,
 }
 
 impl VM {
     pub fn new() -> VM {
         let objects = Rc::new(RefCell::new(ObjectList::new()));
-        let chunk = Rc::new(RefCell::new(Chunk::new(Rc::clone(&objects))));
+        let global_indices = Rc::new(RefCell::new(Table::new()));
+        let chunk = Rc::new(RefCell::new(Chunk::new(
+            Rc::clone(&objects),
+            Rc::clone(&global_indices),
+        )));
         VM {
             chunk: Rc::clone(&chunk),
             ip: RefCell::new(0),
@@ -36,6 +41,7 @@ impl VM {
             scanner: Scanner::new(),
             objects: Rc::clone(&objects),
             globals: Rc::new(RefCell::new(Table::new())),
+            global_indices: Rc::clone(&global_indices),
         }
     }
 

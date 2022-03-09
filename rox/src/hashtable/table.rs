@@ -47,4 +47,8 @@ impl<K, V> StdTable<K, V> {
         let inner_table: HashMap<K, Entry<K, V>> = HashMap::new();
         StdTable { inner_table }
     }
+
+    pub fn reset(&mut self) {
+        self.inner_table.drain();
+    }
 }

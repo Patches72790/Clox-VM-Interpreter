@@ -1,5 +1,5 @@
 use crate::opcode::VariableOp;
-use crate::{ObjectList, ObjectType, OpCode, RoxObject, RoxString};
+use crate::{ObjectList, ObjectType, OpCode, RcMut, RoxObject, RoxString, Table, DEBUG_MODE};
 use crate::{Value, Values};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,6 +20,7 @@ pub struct Chunk {
     pub constants: Values,
     pub lines: Vec<String>,
     objects: Rc<RefCell<ObjectList>>,
+    global_indices: RcMut<Table<RoxString, usize>>,
 }
 
 impl Chunk {
@@ -27,21 +28,26 @@ impl Chunk {
     ///Creates and returns a new chunk with size/capacity of 0.
     ///The code vector is initially set to Option<None>.
     ///
-    pub fn new(objects: Rc<RefCell<ObjectList>>) -> Chunk {
+    pub fn new(
+        objects: Rc<RefCell<ObjectList>>,
+        global_indices: RcMut<Table<RoxString, usize>>,
+    ) -> Chunk {
         Chunk {
             count: 0,
             code: vec![],
             constants: Values::new(),
             lines: vec![],
             objects,
+            global_indices,
         }
     }
 
     pub fn reset(&mut self) {
         self.count = 0;
         self.code = vec![];
-        self.constants = Values::new();
+        //self.constants = Values::new();
         self.lines = vec![];
+        //self.global_indices.borrow_mut().reset();
     }
 
     ///
@@ -128,7 +134,9 @@ impl Chunk {
     /// Then the method writes to the chunk with the provided index.
     ///
     pub fn add_constant(&mut self, value: Value, line: usize) {
-        let (index, value_ref) = self.constants.write_value(value);
+        let (index, value_ref) = self
+            .constants
+            .write_value(value, &mut self.global_indices.borrow_mut());
 
         // add rox object to list for tracking allocated objects
         if let Value::Object(obj) = value_ref {
@@ -144,11 +152,13 @@ impl Chunk {
         line: usize,
         variable_op: VariableOp,
     ) -> usize {
-        let (index, value_ref) =
-            self.constants
-                .write_value(Value::Object(RoxObject::new(ObjectType::ObjString(
-                    string_value.clone(),
-                ))));
+        let (index, value_ref) = self.constants.write_value(
+            Value::Object(RoxObject::new(ObjectType::ObjString(string_value.clone()))),
+            &mut self.global_indices.borrow_mut(),
+        );
+        if DEBUG_MODE {
+            println!("Added id {} at index {} to values", value_ref, index);
+        }
 
         if let Value::Object(obj) = value_ref {
             self.objects.borrow_mut().add_object(obj);

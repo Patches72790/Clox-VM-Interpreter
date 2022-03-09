@@ -1,11 +1,10 @@
-use crate::{ObjectType, RoxMap, RoxNumber, RoxObject, RoxString, Table};
+use crate::{ObjectType, RoxMap, RoxNumber, RoxObject, RoxString, Table, DEBUG_MODE};
 use std::ops;
 
 #[derive(Debug)]
 pub struct Values {
     pub count: usize,
     pub values: Vec<Value>,
-    globals: Table<RoxString, usize>,
 }
 
 #[derive(Debug, Clone, Eq)]
@@ -22,7 +21,6 @@ impl Values {
         Values {
             count: 0,
             values: vec![],
-            globals: Table::new(),
         }
     }
 
@@ -30,22 +28,36 @@ impl Values {
      * Writes a value to the values array and returns the index at which it
      * was added for use in the chunk instruction block.
      */
-    pub fn write_value(&mut self, value: Value) -> (usize, &mut Value) {
+    pub fn write_value(
+        &mut self,
+        value: Value,
+        global_indices: &mut Table<RoxString, usize>,
+    ) -> (usize, &mut Value) {
         // keep a globals map so as not to duplicate globals in values array
         match &value {
             Value::Object(obj) => match &obj.object_type {
-                ObjectType::ObjString(rox_string) => match self.globals.get(&rox_string) {
+                ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
                     Some(idx) => {
-                        let found_global = self.values.get_mut(*idx).unwrap();
+                        println!("Global indices: {:?}", global_indices);
+                        println!("Values array: {:?}", self.values);
+                        let found_global = self.values.get_mut(*idx).expect(&format!(
+                            "Error finding global '{}' at index {}",
+                            rox_string, idx,
+                        ));
                         return (*idx, found_global);
                     }
                     None => {
                         self.values.push(value.clone());
                         self.count += 1;
                         let index = self.count - 1;
+                        if DEBUG_MODE {
+                            println!("Setting global {} to index {}", rox_string, index);
+                            println!("Values array: {:?}", self.values);
+                        }
+
                         let value_ref = self.values.get_mut(index).unwrap();
 
-                        self.globals.set(&rox_string, &index);
+                        global_indices.set(&rox_string, &index);
                         return (index, value_ref);
                     }
                 },
