@@ -26,9 +26,8 @@ impl RawStack {
 
     pub fn peek(&self, distance: usize) -> Result<Value, &'static str> {
         unsafe {
-            let d = (self.size - distance) as isize;
-            if d < 0 {
-                panic!("Cannot peek beyond bottom of stack!");
+            if let None = self.size.checked_sub(distance) {
+                return Err("Cannot peek beyond bottom of stack!");
             }
 
             let val = &*self.stack_ptr.offset(-1 - distance as isize);
