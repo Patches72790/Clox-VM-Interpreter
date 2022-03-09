@@ -31,41 +31,42 @@ impl Values {
     pub fn write_value(
         &mut self,
         value: Value,
-        global_indices: &mut Table<RoxString, usize>,
+        global_indices: Option<&mut Table<RoxString, usize>>,
     ) -> (usize, &mut Value) {
         // keep a globals map so as not to duplicate globals in values array
-        match &value {
-            Value::Object(obj) => match &obj.object_type {
-                ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
-                    Some(idx) => {
-                        println!("Global indices: {:?}", global_indices);
-                        println!("Values array: {:?}", self.values);
-                        let found_global = self.values.get_mut(*idx).expect(&format!(
-                            "Error finding global '{}' at index {}",
-                            rox_string, idx,
-                        ));
-                        return (*idx, found_global);
-                    }
-                    None => {
-                        self.values.push(value.clone());
-                        self.count += 1;
-                        let index = self.count - 1;
-                        if DEBUG_MODE {
-                            println!("Setting global {} to index {}", rox_string, index);
+        if let Some(global_indices) = global_indices {
+            match &value {
+                Value::Object(obj) => match &obj.object_type {
+                    ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
+                        Some(idx) => {
+                            println!("Global indices: {:?}", global_indices);
                             println!("Values array: {:?}", self.values);
+                            let found_global = self.values.get_mut(*idx).expect(&format!(
+                                "Error finding global '{}' at index {}",
+                                rox_string, idx,
+                            ));
+                            return (*idx, found_global);
                         }
+                        None => {
+                            self.values.push(value.clone());
+                            self.count += 1;
+                            let index = self.count - 1;
+                            if DEBUG_MODE {
+                                println!("Setting global {} to index {}", rox_string, index);
+                                println!("Values array: {:?}", self.values);
+                            }
 
-                        let value_ref = self.values.get_mut(index).unwrap();
+                            let value_ref = self.values.get_mut(index).unwrap();
 
-                        global_indices.set(&rox_string, &index);
-                        return (index, value_ref);
-                    }
+                            global_indices.set(&rox_string, &index);
+                            return (index, value_ref);
+                        }
+                    },
+                    _ => (),
                 },
                 _ => (),
-            },
-            _ => (),
-        };
-
+            };
+        }
         self.values.push(value);
         self.count += 1;
         let index = self.count - 1;

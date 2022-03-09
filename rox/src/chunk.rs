@@ -134,9 +134,7 @@ impl Chunk {
     /// Then the method writes to the chunk with the provided index.
     ///
     pub fn add_constant(&mut self, value: Value, line: usize) {
-        let (index, value_ref) = self
-            .constants
-            .write_value(value, &mut self.global_indices.borrow_mut());
+        let (index, value_ref) = self.constants.write_value(value, None);
 
         // add rox object to list for tracking allocated objects
         if let Value::Object(obj) = value_ref {
@@ -154,7 +152,7 @@ impl Chunk {
     ) -> usize {
         let (index, value_ref) = self.constants.write_value(
             Value::Object(RoxObject::new(ObjectType::ObjString(string_value.clone()))),
-            &mut self.global_indices.borrow_mut(),
+            Some(&mut self.global_indices.borrow_mut()),
         );
         if DEBUG_MODE {
             println!("Added id {} at index {} to values", value_ref, index);
