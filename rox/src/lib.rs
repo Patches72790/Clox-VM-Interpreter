@@ -13,6 +13,7 @@ mod token;
 mod types;
 mod value;
 mod vm;
+mod frontend;
 
 pub use chunk::*;
 pub use compiler::*;

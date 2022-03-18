@@ -1,3 +1,4 @@
+use crate::frontend::{Local, Locals, LOCALS_COUNT};
 use crate::opcode::VariableOp;
 use crate::{
     Chunk, ObjectType, OpCode, Precedence, RoxNumber, RoxObject, RoxString, Token, TokenType,
@@ -15,6 +16,9 @@ pub struct Compiler<'a> {
     current: RefCell<Option<&'a Token>>,
     pub had_error: RefCell<bool>,
     pub panic_mode: RefCell<bool>,
+
+    locals: RefCell<Locals>,
+    scope_depth: RefCell<usize>,
 }
 
 type ParseFn<'a> = Box<dyn FnOnce(bool) + 'a>;
@@ -37,6 +41,8 @@ impl<'a> Compiler<'a> {
             panic_mode: RefCell::new(false),
             previous: RefCell::new(None),
             current: RefCell::new(None),
+            scope_depth: RefCell::new(0),
+            locals: RefCell::new(Locals::new()),
         }
     }
 
@@ -326,12 +332,60 @@ impl<'a> Compiler<'a> {
             "Expect ';' after variable declaration.",
         );
 
+        self.define_variable(index);
+    }
+
+    fn declare_variable(&'a self) {
+        // for globals
+        if *self.scope_depth.borrow() == 0 {
+            return;
+        }
+
+        let token = &*self
+            .previous
+            .borrow()
+            .expect("Error borrowing previous token when declaring local variable.");
+
+        let is_doubly_declared = self
+            .locals
+            .borrow()
+            .local_is_doubly_declared(token, *self.scope_depth.borrow());
+
+        if is_doubly_declared {
+            self.error("Already a variable with this name in scope.");
+            return;
+        }
+
+        self.add_local(token);
+    }
+
+    fn add_local(&'a self, token: &Token) {
+        let locals_count = self.locals.borrow().size();
+        if locals_count == LOCALS_COUNT {
+            self.error("Too many local variables in function.");
+            return;
+        }
+
+        self.locals
+            .borrow_mut()
+            .add_local(token, *self.scope_depth.borrow());
+    }
+
+    fn define_variable(&'a self, index: usize) {
+        if *self.scope_depth.borrow() > 0 {
+            return;
+        }
+
         self.emit_byte(OpCode::OpDefineGlobal(index));
     }
 
     fn statement(&'a self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else if self.match_token(TokenType::LeftBrace) {
+            self.begin_scope();
+            self.block();
+            self.end_scope();
         } else {
             self.expression_statement();
         }
@@ -350,6 +404,29 @@ impl<'a> Compiler<'a> {
             "Expected ';' after expression statement.",
         );
         self.emit_byte(OpCode::OpPop);
+    }
+
+    fn block(&'a self) {
+        while !self.check_token(TokenType::RightBrace) && !self.check_token(TokenType::EOF) {
+            self.declaration();
+        }
+
+        self.consume(TokenType::RightBrace, "Expect '}' after block.");
+    }
+
+    fn begin_scope(&'a self) {
+        *self.scope_depth.borrow_mut() += 1;
+    }
+
+    fn end_scope(&'a self) {
+        *self.scope_depth.borrow_mut() -= 1;
+        let scope_depth = *self.scope_depth.borrow();
+
+        let num_removed = self.locals.borrow_mut().remove_locals(scope_depth);
+
+        for _ in 0..num_removed {
+            self.emit_byte(OpCode::OpPop);
+        }
     }
 
     fn number(&'a self, num: RoxNumber, line: usize, _can_assign: bool) {
@@ -560,6 +637,12 @@ impl<'a> Compiler<'a> {
                 previous
             ),
         };
+
+        self.declare_variable();
+        // don't add a local and a global below
+        if *self.scope_depth.borrow() > 0 {
+            return 0;
+        }
 
         self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define)
     }
