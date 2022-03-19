@@ -79,7 +79,9 @@ impl Locals {
         false
     }
 
-    pub fn resolve_local() {
+    pub fn resolve_local() -> bool {
+        
+
         todo!()
     }
 }
