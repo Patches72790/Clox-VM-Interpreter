@@ -2,7 +2,7 @@ use std::convert::From;
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Eq, Hash)]
 pub struct RoxString(String);
 
 impl RoxString {
@@ -24,6 +24,12 @@ impl RoxString {
 
     pub fn raw_parts(&mut self) -> (*const u8, usize, usize) {
         (self.0.as_ptr(), self.0.len(), self.0.capacity())
+    }
+}
+
+impl PartialEq for RoxString {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
     }
 }
 

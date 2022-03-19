@@ -53,7 +53,8 @@ impl Locals {
     pub fn remove_locals(&mut self, scope_depth: usize) -> usize {
         let mut num_locals_removed = 0;
 
-        for local in self.locals.iter().rev() {
+        for idx in (0..self.count).rev() {
+            let local = &self.locals[idx];
             if let Some(depth) = local.depth {
                 if depth > scope_depth {
                     num_locals_removed += 1;
@@ -66,16 +67,31 @@ impl Locals {
     }
 
     pub fn local_is_doubly_declared(&self, looking_for: &Token, scope_depth: usize) -> bool {
-        for local in self.locals.iter().rev() {
+        for idx in (0..self.count).rev() {
+            let local = &self.locals[idx];
             if let Some(depth) = local.depth {
                 if depth < scope_depth {
-                    false;
+                    return false;
                 }
             }
 
             if let Some(name) = &local.name {
-                if name == looking_for {
-                    true;
+                let local_str = match &name.token_type {
+                    TokenType::Identifier(s) => s,
+                    _ => panic!("Local string not an identifier"),
+                };
+
+                let looking_for_str = match &looking_for.token_type {
+                    TokenType::Identifier(s) => s,
+                    _ => panic!("Looking for string not an identifier!"),
+                };
+
+                if DEBUG_MODE {
+                    println!("Comparing {local_str} to {looking_for_str}.");
+                }
+
+                if *local_str == *looking_for_str {
+                    return true;
                 }
             }
         }
