@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use crate::Value;
 use crate::STACK_MAX;
 
@@ -25,43 +27,66 @@ impl RawStack {
     }
 
     pub fn peek(&self, distance: usize) -> Result<Value, &'static str> {
-        unsafe {
-            if let None = self.size.checked_sub(distance) {
-                return Err("Cannot peek beyond bottom of stack!");
-            }
+        if let None = self.size.checked_sub(distance) {
+            return Err("Cannot peek beyond bottom of stack!");
+        }
 
-            let val = &*self.stack_ptr.offset(-1 - distance as isize);
-            let val = val.as_ref().expect("Error peeking value from stack");
-            Ok(val.clone())
+        let idx = self.size - 1 - distance;
+        let val = &self.values[idx];
+        if let Some(value) = val {
+            Ok(value.clone())
+        } else {
+            Err("Error peeking value from stack.")
         }
     }
 
     pub fn push(&mut self, value: Value) {
-        unsafe {
-            if self.size == STACK_MAX {
-                panic!("Cannot push beyond maximum stack size of {}", STACK_MAX);
-            }
-
-            *self.stack_ptr = Some(value);
-            self.size += 1;
-            self.stack_ptr = self.stack_ptr.offset(1);
+        if self.size == STACK_MAX {
+            panic!("Cannot push beyond maximum stack size of {}", STACK_MAX);
         }
+
+        self.values[self.size] = Some(value.clone());
+        self.size += 1;
     }
 
     pub fn pop(&mut self) -> Result<Value, &'static str> {
-        unsafe {
-            if self.size == 0 {
-                return Err("Cannot pop from empty VM stack!");
-            }
-            let new_ptr = self.stack_ptr.offset(-1);
-            let val = &*new_ptr;
-            self.stack_ptr = new_ptr;
-            self.size -= 1;
-            match val {
-                Some(val) => Ok(val.clone()),
-                None => Err("Cannot pop from empty VM stack!"),
-            }
+        if self.size == 0 {
+            return Err("Cannot pop from empty VM stack!");
         }
+
+        self.size -= 1;
+        let val = &self.values[self.size];
+
+        match val {
+            Some(val) => Ok(val.clone()),
+            None => Err("Cannot pop from empty stack!"),
+        }
+    }
+
+    pub fn get_and_push_local(&mut self, index: usize) -> Result<(), &'static str> {
+        if let Some(value) = &self.values[index] {
+            self.values[self.size] = Some(value.clone());
+            self.size += 1;
+            Ok(())
+        } else {
+            Err("Error pushing local variable.")
+        }
+    }
+
+    pub fn set_local(&mut self, index: usize) -> Result<(), &'static str> {
+        if self.size == 0 {
+            return Err("Error setting local at empty stack");
+        }
+
+        let local_var = &self.values[self.size - 1];
+
+        if let Some(value) = local_var {
+            self.values[index] = Some(value.clone());
+        } else {
+            return Err("Error peeking top value of stack when setting local var.");
+        }
+
+        Ok(())
     }
 }
 

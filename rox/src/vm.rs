@@ -187,18 +187,13 @@ impl VM {
                     }
                 }
                 OpCode::OpGetLocal(index) => {
-                    println!("Stack: {:?}", self.stack.borrow().values);
-                    if let Some(value) = &self.stack.borrow().values[index] {
-                        self.stack.borrow_mut().push(value.clone());
-                    } else {
-                        panic!("No var located at index {index}");
+                    if let Err(msg) = self.stack.borrow_mut().get_and_push_local(index) {
+                        return Err(InterpretError::RuntimeError(msg.to_string()));
                     }
                 }
                 OpCode::OpSetLocal(index) => {
-                    if let Ok(value) = &self.stack.borrow().peek(0) {
-                        self.stack.borrow_mut().values[index] = Some(value.clone());
-                    } else {
-                        panic!("No var located at index {index}");
+                    if let Err(msg) = self.stack.borrow_mut().set_local(index) {
+                        return Err(InterpretError::RuntimeError(msg.to_string()));
                     }
                 }
                 OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
