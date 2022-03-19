@@ -39,8 +39,10 @@ impl Values {
                 Value::Object(obj) => match &obj.object_type {
                     ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
                         Some(idx) => {
-                            println!("Global indices: {:?}", global_indices);
-                            println!("Values array: {:?}", self.values);
+                            if DEBUG_MODE {
+                                println!("Global indices: {:?}", global_indices);
+                                println!("Values array: {:?}", self.values);
+                            }
                             let found_global = self.values.get_mut(*idx).expect(&format!(
                                 "Error finding global '{}' at index {}",
                                 rox_string, idx,
