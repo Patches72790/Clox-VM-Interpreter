@@ -41,6 +41,10 @@ impl Locals {
         self.count
     }
 
+    pub fn initialize_variable(&mut self, scope_depth: usize) {
+        self.locals[self.count - 1].depth = Some(scope_depth);
+    }
+
     pub fn add_local(&mut self, token: &Token, depth: usize) {
         self.locals[self.count] = Local::new(token, depth);
         self.count += 1;
@@ -99,7 +103,7 @@ impl Locals {
         false
     }
 
-    pub fn resolve_local(&self, local_id: &RoxString) -> Option<usize> {
+    pub fn resolve_local(&self, local_id: &RoxString) -> (bool, Option<usize>) {
         for idx in (0..self.count).rev() {
             let local = &self.locals[idx];
             if let Some(token) = &local.name {
@@ -108,11 +112,15 @@ impl Locals {
                         if DEBUG_MODE {
                             println!("Resolving local variable {}", local_id);
                         }
-                        return Some(idx);
+                        if let None = local.depth {
+                            return (false, None);
+                        }
+
+                        return (true, Some(idx));
                     }
                 }
             }
         }
-        None
+        (true, None)
     }
 }

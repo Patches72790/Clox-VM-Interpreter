@@ -372,7 +372,9 @@ impl<'a> Compiler<'a> {
     }
 
     fn define_variable(&'a self, index: usize) {
-        if *self.scope_depth.borrow() > 0 {
+        let scope_depth = *self.scope_depth.borrow();
+        if scope_depth > 0 {
+            self.locals.borrow_mut().initialize_variable(scope_depth);
             return;
         }
 
@@ -465,7 +467,11 @@ impl<'a> Compiler<'a> {
     }
 
     fn variable(&'a self, id: &Rc<RoxString>, line: usize, can_assign: bool) {
-        let is_local_id = self.locals.borrow().resolve_local(id);
+        let (is_initialized, is_local_id) = self.locals.borrow().resolve_local(id);
+
+        if !is_initialized {
+            self.error("Can't read local variable in its own initializer.");
+        }
 
         // locals live on the stack at runtime
         if let Some(local_idx) = is_local_id {
@@ -475,7 +481,7 @@ impl<'a> Compiler<'a> {
             } else {
                 self.emit_byte(OpCode::OpGetLocal(local_idx));
             }
-        } 
+        }
         // globals live in globals list
         else {
             if can_assign && self.match_token(TokenType::Equal) {
