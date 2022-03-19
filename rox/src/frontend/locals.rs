@@ -1,4 +1,4 @@
-use crate::Token;
+use crate::{RoxString, Token, TokenType, DEBUG_MODE};
 
 use super::LOCALS_COUNT;
 
@@ -44,6 +44,10 @@ impl Locals {
     pub fn add_local(&mut self, token: &Token, depth: usize) {
         self.locals[self.count] = Local::new(token, depth);
         self.count += 1;
+
+        if DEBUG_MODE {
+            println!("Added local variable at index {}", self.count - 1);
+        }
     }
 
     pub fn remove_locals(&mut self, scope_depth: usize) -> usize {
@@ -79,9 +83,20 @@ impl Locals {
         false
     }
 
-    pub fn resolve_local() -> bool {
-        
-
-        todo!()
+    pub fn resolve_local(&self, local_id: &RoxString) -> Option<usize> {
+        for idx in (0..self.count).rev() {
+            let local = &self.locals[idx];
+            if let Some(token) = &local.name {
+                if let TokenType::Identifier(string) = &token.token_type {
+                    if **string == *local_id {
+                        if DEBUG_MODE {
+                            println!("Resolving local variable {}", local_id);
+                        }
+                        return Some(idx);
+                    }
+                }
+            }
+        }
+        None
     }
 }

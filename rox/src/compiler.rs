@@ -465,15 +465,29 @@ impl<'a> Compiler<'a> {
     }
 
     fn variable(&'a self, id: &Rc<RoxString>, line: usize, can_assign: bool) {
-        if can_assign && self.match_token(TokenType::Equal) {
-            self.expression();
-            self.chunk
-                .borrow_mut()
-                .add_identifier_constant(id, line, VariableOp::Set);
-        } else {
-            self.chunk
-                .borrow_mut()
-                .add_identifier_constant(id, line, VariableOp::Get);
+        let is_local_id = self.locals.borrow().resolve_local(id);
+
+        // locals live on the stack at runtime
+        if let Some(local_idx) = is_local_id {
+            if can_assign && self.match_token(TokenType::Equal) {
+                self.expression();
+                self.emit_byte(OpCode::OpSetLocal(local_idx));
+            } else {
+                self.emit_byte(OpCode::OpGetLocal(local_idx));
+            }
+        } 
+        // globals live in globals list
+        else {
+            if can_assign && self.match_token(TokenType::Equal) {
+                self.expression();
+                self.chunk
+                    .borrow_mut()
+                    .add_identifier_constant(id, line, VariableOp::SetGlobal);
+            } else {
+                self.chunk
+                    .borrow_mut()
+                    .add_identifier_constant(id, line, VariableOp::GetGlobal);
+            }
         }
     }
 

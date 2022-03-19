@@ -186,6 +186,21 @@ impl VM {
                         println!("Read global id {string_id} from globals table");
                     }
                 }
+                OpCode::OpGetLocal(index) => {
+                    println!("Stack: {:?}", self.stack.borrow().values);
+                    if let Some(value) = &self.stack.borrow().values[index] {
+                        self.stack.borrow_mut().push(value.clone());
+                    } else {
+                        panic!("No var located at index {index}");
+                    }
+                }
+                OpCode::OpSetLocal(index) => {
+                    if let Ok(value) = &self.stack.borrow().peek(0) {
+                        self.stack.borrow_mut().values[index] = Some(value.clone());
+                    } else {
+                        panic!("No var located at index {index}");
+                    }
+                }
                 OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
                 OpCode::OpFalse => self.stack.borrow_mut().push(Value::Boolean(false)),
                 OpCode::OpNil => self.stack.borrow_mut().push(Value::Nil),

@@ -163,8 +163,8 @@ impl Chunk {
         }
 
         match variable_op {
-            VariableOp::Get => self.write_chunk(OpCode::OpGetGlobal(index), line),
-            VariableOp::Set => self.write_chunk(OpCode::OpSetGlobal(index), line),
+            VariableOp::GetGlobal => self.write_chunk(OpCode::OpGetGlobal(index), line),
+            VariableOp::SetGlobal => self.write_chunk(OpCode::OpSetGlobal(index), line),
             VariableOp::Define => (), // define globals opcode defers
                                       //writing opcode until after parsing expression
         }
@@ -200,6 +200,8 @@ impl Chunk {
             OpCode::OpDefineGlobal(_) => Chunk::simple_instruction("OP_DEFINE_GLOBAL"),
             OpCode::OpGetGlobal(_) => Chunk::simple_instruction("OP_GET_GLOBAL"),
             OpCode::OpSetGlobal(_) => Chunk::simple_instruction("OP_SET_GLOBAL"),
+            OpCode::OpGetLocal(_) => Chunk::simple_instruction("OP_GET_LOCAL"),
+            OpCode::OpSetLocal(_) => Chunk::simple_instruction("OP_SET_LOCAL"),
         };
     }
 
