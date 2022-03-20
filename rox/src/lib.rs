@@ -32,5 +32,5 @@ pub use types::*;
 pub use value::*;
 pub use vm::*;
 
-pub static DEBUG_MODE: bool = false;
+pub static DEBUG_MODE: bool = true;
 pub const STACK_MAX: usize = 256;

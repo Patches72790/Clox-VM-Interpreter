@@ -1,12 +1,14 @@
 use crate::hashtable::entry::Entry;
 use crate::hashtable::map::RoxMap;
+use crate::DEBUG_MODE;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 impl<K, V> RoxMap<K, V> for StdTable<K, V>
 where
-    K: Hash + Eq + Clone,
-    V: Clone,
+    K: Hash + Eq + Clone + Debug,
+    V: Clone + Debug,
 {
     fn get(&self, key: &K) -> Option<&V> {
         match self.inner_table.get(&key) {
@@ -21,6 +23,23 @@ where
             .insert(key.clone(), Entry::new_full(key, value))
         {
             Some(_) => true,
+            None => false,
+        }
+    }
+
+    /// Sets the value at key if it already exists
+    /// in the map. If the key doesn't already exist, then it returns false
+    /// and does not set a new key-value pair.
+    fn get_and_set(&mut self, key: &K, value: &V) -> bool {
+        match self.inner_table.get(key) {
+            Some(s) => {
+                if DEBUG_MODE {
+                    println!("Overwriting string {:?}", s);
+                }
+
+                self.set(key, value);
+                true
+            }
             None => false,
         }
     }

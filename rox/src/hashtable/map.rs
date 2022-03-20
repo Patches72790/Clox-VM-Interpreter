@@ -6,6 +6,8 @@ pub trait RoxMap<K = Rc<RoxString>, V = Value> {
 
     fn set(&mut self, key: &K, value: &V) -> bool;
 
+    fn get_and_set(&mut self, key: &K, value: &V) -> bool;
+
     fn contains(&self, key: K) -> bool;
 
     fn remove(&mut self, key: K) -> Option<V>;

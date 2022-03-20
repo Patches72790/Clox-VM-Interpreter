@@ -157,13 +157,12 @@ impl VM {
                         VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
 
                     let rhs = self.stack.borrow().peek(0)?;
-                    if let Some(_) = self.globals.borrow().get(&string_id) {
+                    if !self.globals.borrow_mut().get_and_set(&string_id, &rhs) {
                         return Err(InterpretError::RuntimeError(format!(
                             "Undefined variable {}",
                             string_id
                         )));
                     } else {
-                        self.globals.borrow_mut().set(&string_id, &rhs);
                         if DEBUG_MODE {
                             println!("Set global id {string_id} to {rhs}.");
                         }
