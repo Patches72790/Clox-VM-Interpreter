@@ -61,9 +61,9 @@ impl VM {
     }
 
     fn read_string(values: &[Value], str_id_index: usize) -> RoxString {
-        let string_id = VM::read_constant(values, str_id_index).expect(&format!(
-            "String id constant at index {str_id_index} did not return expected value!"
-        ));
+        let string_id = VM::read_constant(values, str_id_index).unwrap_or_else(|| {
+            panic!("String id constant at index {str_id_index} did not return expected value!")
+        });
 
         match string_id {
             Value::Object(obj) => match obj.object_type {
@@ -81,7 +81,7 @@ impl VM {
     }
 
     fn incr_ip(&self) -> usize {
-        let current_ip = self.ip.borrow().clone();
+        let current_ip = *self.ip.borrow();
         *self.ip.borrow_mut() += 1;
 
         current_ip
@@ -123,13 +123,12 @@ impl VM {
                 OpCode::OpConstant(constants_index) => {
                     let constant =
                         VM::read_constant(&self.chunk.borrow().constants.values, constants_index)
-                            .expect(
-                                format!(
+                            .unwrap_or_else(|| {
+                                panic!(
                                     "Constant at IP {} did not return expected value!",
                                     current_ip
                                 )
-                                .as_str(),
-                            );
+                            });
                     self.stack.borrow_mut().push(constant);
                 }
                 OpCode::OpDefineGlobal(str_id_index) => {
