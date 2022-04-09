@@ -287,7 +287,7 @@ impl VM {
             Value::Object(obj_one) => match &obj_one.object_type {
                 ObjectType::ObjString(str_1) => match rhs {
                     Value::Object(obj_two) => match &obj_two.object_type {
-                        ObjectType::ObjString(str_2) => (true, Some(&str_1), Some(&str_2)),
+                        ObjectType::ObjString(str_2) => (true, Some(str_1), Some(str_2)),
                     },
                     _ => (false, None, None),
                 },
@@ -374,9 +374,8 @@ mod tests {
     fn test_add_binary_op() {
         let vm = VM::new();
 
-        match vm.interpret("45 + 15;") {
-            Err(msg) => panic!("{}", msg),
-            _ => (),
+        if let Err(msg) = vm.interpret("45 + 15;") {
+            panic!("{}", msg)
         };
     }
 
@@ -385,9 +384,8 @@ mod tests {
     fn test_mult_op_1() {
         let vm = VM::new();
 
-        match vm.interpret("1 + 2 * 3;") {
-            Err(msg) => panic!("{}", msg),
-            _ => (),
+        if let Err(msg) = vm.interpret("1 + 2 * 3;") {
+            panic!("{}", msg)
         }
     }
 
@@ -396,9 +394,16 @@ mod tests {
     fn test_sub() {
         let vm = VM::new();
 
-        match vm.interpret("3 - 2 - 1;") {
-            Err(msg) => panic!("{}", msg),
-            _ => (),
+        if let Err(msg) = vm.interpret("3 - 2 - 1;") {
+            panic!("{}", msg)
+        }
+    }
+
+    #[test]
+    fn test_local_vars() {
+        let vm = VM::new();
+        if let Err(msg) = vm.interpret("var a = 123; { var b = 456; print a + b; } print a;") {
+            panic!("{}", msg)
         }
     }
 }
