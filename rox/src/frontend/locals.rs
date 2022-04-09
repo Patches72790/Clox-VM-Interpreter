@@ -112,7 +112,7 @@ impl Locals {
                         if DEBUG_MODE {
                             println!("Resolving local variable {}", local_id);
                         }
-                        if let None = local.depth {
+                        if  local.depth.is_none() {
                             return (false, None);
                         }
 

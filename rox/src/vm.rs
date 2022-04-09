@@ -52,23 +52,15 @@ impl VM {
         self.stack.borrow_mut().reset_stack();
     }
 
-    fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
-        if let Some(val) = code.get(ip) {
-            Some(*val)
-        } else {
-            None
-        }
+    fn read_byte(code: &[OpCode], ip: usize) -> Option<OpCode> {
+        code.get(ip).copied()
     }
 
-    fn read_constant(values: &Vec<Value>, index: usize) -> Option<Value> {
-        if let Some(val) = values.get(index) {
-            Some(val.clone())
-        } else {
-            None
-        }
+    fn read_constant(values: &[Value], index: usize) -> Option<Value> {
+        values.get(index).cloned()
     }
 
-    fn read_string(values: &Vec<Value>, str_id_index: usize) -> RoxString {
+    fn read_string(values: &[Value], str_id_index: usize) -> RoxString {
         let string_id = VM::read_constant(values, str_id_index).expect(&format!(
             "String id constant at index {str_id_index} did not return expected value!"
         ));
@@ -352,10 +344,16 @@ impl VM {
         if DEBUG_MODE {
             println!("Objects:");
             //self.objects.borrow().print_objects();
-            print!("|  IP  | Line | OpCode              | Stack\n");
+            println!("|  IP  | Line | OpCode              | Stack");
         }
         // run vm with chunk filled with compiled opcodes
         self.run()
+    }
+}
+
+impl Default for VM {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
