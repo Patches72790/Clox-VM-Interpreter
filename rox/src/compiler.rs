@@ -507,7 +507,7 @@ impl<'a> Compiler<'a> {
             TokenType::True => self.emit_byte(OpCode::OpTrue),
             TokenType::False => self.emit_byte(OpCode::OpFalse),
             TokenType::Nil => self.emit_byte(OpCode::OpNil),
-            _ => return, // never will be here because literal only used for these three types
+            _ => (), // never will be here because literal only used for these three types
         }
     }
 
@@ -591,8 +591,7 @@ impl<'a> Compiler<'a> {
 
         let prefix_fn = self
             .get_rule(
-                &self
-                    .previous
+                self.previous
                     .borrow()
                     .expect("Error borrowing previous token in parse"),
             )
@@ -614,14 +613,13 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
-        while precedence <= &self.get_rule(&self.current.borrow().unwrap()).precedence {
+        while precedence <= &self.get_rule(self.current.borrow().unwrap()).precedence {
             // advance cursor and execute infix parsing function
             self.advance();
 
             let infix_fn = self
                 .get_rule(
-                    &self
-                        .previous
+                    self.previous
                         .borrow()
                         .expect("Error borrowing previous in parse"),
                 )
@@ -664,7 +662,7 @@ impl<'a> Compiler<'a> {
             return 0;
         }
 
-        self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define)
+        self.emit_identifier_constant(previous_token_value, previous.line, VariableOp::Define)
     }
 
     pub fn compile(&'a self) -> bool {

@@ -9,20 +9,16 @@ where
     V: Clone,
 {
     fn get(&self, key: &K) -> Option<&V> {
-        match self.inner_table.get(&key) {
+        match self.inner_table.get(key) {
             Some(entry) => Some(&entry.value),
             _ => None,
         }
     }
 
     fn set(&mut self, key: &K, value: &V) -> bool {
-        match self
-            .inner_table
+        self.inner_table
             .insert(key.clone(), Entry::new_full(key, value))
-        {
-            Some(_) => true,
-            None => false,
-        }
+            .is_some()
     }
 
     fn remove(&mut self, key: K) -> Option<V> {
@@ -50,5 +46,11 @@ impl<K, V> StdTable<K, V> {
 
     pub fn reset(&mut self) {
         self.inner_table.drain();
+    }
+}
+
+impl<K, V> Default for StdTable<K, V> {
+    fn default() -> Self {
+        StdTable::new()
     }
 }
