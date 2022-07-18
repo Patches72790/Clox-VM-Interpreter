@@ -26,6 +26,12 @@ pub struct VM {
     global_indices: RcMut<Table<RoxString, usize>>,
 }
 
+impl Default for VM {
+    fn default() -> Self {
+        VM::new()
+    }
+}
+
 impl VM {
     pub fn new() -> VM {
         let objects = Rc::new(RefCell::new(ObjectList::new()));
@@ -52,7 +58,7 @@ impl VM {
         self.stack.borrow_mut().reset_stack();
     }
 
-    fn read_byte(code: &Vec<OpCode>, ip: usize) -> Option<OpCode> {
+    fn read_byte(code: &[OpCode], ip: usize) -> Option<OpCode> {
         if let Some(val) = code.get(ip) {
             Some(*val)
         } else {

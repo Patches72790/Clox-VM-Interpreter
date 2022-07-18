@@ -192,7 +192,7 @@ impl Scanner {
                     ' ' | '\n' | '\t' | '\r' => continue, // skip whitespace
                     '/' => {
                         if line_chars.peek().unwrap_or(&(0, ' ')).1 == '/' {
-                            while let Some((_, c)) = line_chars.next() {
+                            for (_, c) in line_chars.by_ref() {
                                 match c {
                                     '\n' => break,
                                     _ => continue,
