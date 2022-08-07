@@ -11,20 +11,16 @@ where
     V: Clone + Debug,
 {
     fn get(&self, key: &K) -> Option<&V> {
-        match self.inner_table.get(&key) {
+        match self.inner_table.get(key) {
             Some(entry) => Some(&entry.value),
             _ => None,
         }
     }
 
     fn set(&mut self, key: &K, value: &V) -> bool {
-        match self
-            .inner_table
+        self.inner_table
             .insert(key.clone(), Entry::new_full(key, value))
-        {
-            Some(_) => true,
-            None => false,
-        }
+            .is_some()
     }
 
     /// Sets the value at key if it already exists
@@ -56,7 +52,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct StdTable<K, V> {
     inner_table: HashMap<K, Entry<K, V>>,
 }

@@ -64,10 +64,10 @@ impl Config {
         let file_contents = match fs::read_to_string(pathname) {
             Ok(content) => content,
             Err(msg) => {
-                return Err(ConfigError::new(String::from(format!(
+                return Err(ConfigError::new(format!(
                     "Error reading from file {} with msg: {}",
                     pathname, msg
-                ))))
+                )))
             }
         };
 
@@ -91,10 +91,10 @@ impl Config {
         let file_contents = match fs::read_to_string(file) {
             Ok(content) => content,
             Err(_) => {
-                return Err(ConfigError::new(String::from(format!(
+                return Err(ConfigError::new(format!(
                     "Error reading from file: {}",
                     file,
-                ))))
+                )))
             }
         };
 

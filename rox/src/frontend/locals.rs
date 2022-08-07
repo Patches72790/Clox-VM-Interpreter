@@ -2,7 +2,7 @@ use crate::{RoxString, Token, TokenType, DEBUG_MODE};
 
 use super::LOCALS_COUNT;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Local {
     pub name: Option<Token>,
     pub depth: Option<usize>,
@@ -13,15 +13,6 @@ impl Local {
         Local {
             name: Some(name.clone()),
             depth: Some(depth),
-        }
-    }
-}
-
-impl Default for Local {
-    fn default() -> Self {
-        Local {
-            name: None,
-            depth: None,
         }
     }
 }
@@ -112,7 +103,7 @@ impl Locals {
                         if DEBUG_MODE {
                             println!("Resolving local variable {}", local_id);
                         }
-                        if  local.depth.is_none() {
+                        if local.depth.is_none() {
                             return (false, None);
                         }
 

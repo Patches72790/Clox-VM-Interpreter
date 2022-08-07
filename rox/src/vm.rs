@@ -153,10 +153,9 @@ impl VM {
                             "Undefined variable {}",
                             string_id
                         )));
-                    } else {
-                        if DEBUG_MODE {
-                            println!("Set global id {string_id} to {rhs}.");
-                        }
+                    }
+                    if DEBUG_MODE {
+                        println!("Set global id {string_id} to {rhs}.");
                     }
                 }
                 OpCode::OpGetGlobal(str_id_index) => {
