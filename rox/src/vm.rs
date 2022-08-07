@@ -345,9 +345,7 @@ impl VM {
         }
 
         if DEBUG_MODE {
-            println!("Objects:");
-            //self.objects.borrow().print_objects();
-            println!("|  IP  | Line | OpCode              | Stack");
+            println!("|  IP  | Line | OpCode                    | Stack");
         }
         // run vm with chunk filled with compiled opcodes
         self.run()

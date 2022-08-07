@@ -84,10 +84,10 @@ impl Chunk {
 
             // TODO -- how not to pad lines with count for empty lines?
             for _ in 0..num_blank_lines {
-                chunk.lines.push(String::from((new_count - 1).to_string()));
+                chunk.lines.push((new_count - 1).to_string());
             }
 
-            chunk.lines.push(String::from(new_count.to_string()));
+            chunk.lines.push(new_count.to_string());
         } else {
             // increment number of instructions in current line
             let current_line = match chunk.lines.pop() {
@@ -206,7 +206,9 @@ impl Chunk {
             OpCode::OpSetGlobal(_) => Chunk::simple_instruction("OP_SET_GLOBAL"),
             OpCode::OpGetLocal(_) => Chunk::simple_instruction("OP_GET_LOCAL"),
             OpCode::OpSetLocal(_) => Chunk::simple_instruction("OP_SET_LOCAL"),
-            OpCode::OpJumpIfFalse(_) => Chunk::simple_instruction("OP_JUMP_IF_FALSE")
+            OpCode::OpJumpIfFalse(offset) => {
+                Chunk::simple_instruction(format!("OP_JUMP_IF_FALSE {}", offset.unwrap()).as_str())
+            }
         };
     }
 
@@ -220,7 +222,7 @@ impl Chunk {
     }
 
     fn simple_instruction(name: &str) {
-        print!("{:<19} |", name);
+        print!("{:<25} |", name);
     }
 }
 
