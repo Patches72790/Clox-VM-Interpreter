@@ -15,7 +15,7 @@ thread_local! {
 ///of type OpCode.
 #[derive(Debug)]
 pub struct Chunk {
-    count: i32,
+    count: usize,
     pub code: Vec<OpCode>,
     pub constants: Values,
     pub lines: Vec<String>,
@@ -48,6 +48,10 @@ impl Chunk {
         //self.constants = Values::new();
         self.lines = vec![];
         //self.global_indices.borrow_mut().reset();
+    }
+
+    pub fn count(&self) -> usize {
+        self.count
     }
 
     ///
@@ -202,6 +206,7 @@ impl Chunk {
             OpCode::OpSetGlobal(_) => Chunk::simple_instruction("OP_SET_GLOBAL"),
             OpCode::OpGetLocal(_) => Chunk::simple_instruction("OP_GET_LOCAL"),
             OpCode::OpSetLocal(_) => Chunk::simple_instruction("OP_SET_LOCAL"),
+            OpCode::OpJumpIfFalse(_) => Chunk::simple_instruction("OP_JUMP_IF_FALSE")
         };
     }
 

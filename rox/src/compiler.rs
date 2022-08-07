@@ -384,6 +384,8 @@ impl<'a> Compiler<'a> {
     fn statement(&'a self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else if self.match_token(TokenType::If) {
+            self.if_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -406,6 +408,29 @@ impl<'a> Compiler<'a> {
             "Expected ';' after expression statement.",
         );
         self.emit_byte(OpCode::OpPop);
+    }
+
+    fn if_statement(&'a self) {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition.");
+
+        let then_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
+        self.statement();
+
+        self.patch_jump(then_jump);
+    }
+
+    fn emit_jump(&'a self, instruction: OpCode) -> usize {
+        self.emit_byte(instruction);
+        self.chunk.borrow().count() - 1
+    }
+
+    fn patch_jump(&'a self, offset: usize) {
+        let jump = self.chunk.borrow().count() - offset;
+
+        // patch in the jump offset from the jump opcode to past the then clause
+        self.chunk.borrow_mut().code[offset] = OpCode::OpJumpIfFalse(Some(jump))
     }
 
     fn block(&'a self) {
@@ -481,9 +506,8 @@ impl<'a> Compiler<'a> {
             } else {
                 self.emit_byte(OpCode::OpGetLocal(local_idx));
             }
-        }
-        // globals live in globals list
-        else {
+        } else {
+            // globals live in globals list
             if can_assign && self.match_token(TokenType::Equal) {
                 self.expression();
                 self.chunk
@@ -507,7 +531,7 @@ impl<'a> Compiler<'a> {
             TokenType::True => self.emit_byte(OpCode::OpTrue),
             TokenType::False => self.emit_byte(OpCode::OpFalse),
             TokenType::Nil => self.emit_byte(OpCode::OpNil),
-            _ => return, // never will be here because literal only used for these three types
+            _ => (), // never will be here because literal only used for these three types
         }
     }
 
@@ -539,7 +563,7 @@ impl<'a> Compiler<'a> {
             .expect("Error borrowing previous token in binary");
 
         // get parse rule
-        let rule = self.get_rule(&operator_type);
+        let rule = self.get_rule(operator_type);
 
         // parse rule with next highest precedence (term -> factor, factor -> unary)
         self.parse(rule.precedence.get_next());
@@ -589,14 +613,11 @@ impl<'a> Compiler<'a> {
         // advance cursor
         self.advance();
 
-        let prefix_fn = self
-            .get_rule(
-                &self
-                    .previous
-                    .borrow()
-                    .expect("Error borrowing previous token in parse"),
-            )
-            .prefix_fn;
+        let ParseRule { prefix_fn, .. } = self.get_rule(
+            self.previous
+                .borrow()
+                .expect("Error borrowing previous token in parse"),
+        );
 
         let can_assign = precedence <= &Precedence::PrecAssign;
 
@@ -614,18 +635,15 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
-        while precedence <= &self.get_rule(&self.current.borrow().unwrap()).precedence {
+        while precedence <= &self.get_rule(self.current.borrow().unwrap()).precedence {
             // advance cursor and execute infix parsing function
             self.advance();
 
-            let infix_fn = self
-                .get_rule(
-                    &self
-                        .previous
-                        .borrow()
-                        .expect("Error borrowing previous in parse"),
-                )
-                .infix_fn;
+            let ParseRule { infix_fn, .. } = self.get_rule(
+                self.previous
+                    .borrow()
+                    .expect("Error borrowing previous in parse"),
+            );
 
             if let Some(in_fn) = infix_fn {
                 in_fn(can_assign);
@@ -664,7 +682,7 @@ impl<'a> Compiler<'a> {
             return 0;
         }
 
-        self.emit_identifier_constant(&previous_token_value, previous.line, VariableOp::Define)
+        self.emit_identifier_constant(previous_token_value, previous.line, VariableOp::Define)
     }
 
     pub fn compile(&'a self) -> bool {

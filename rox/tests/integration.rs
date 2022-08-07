@@ -1,33 +1,41 @@
 use rox::Config;
 use std::env::args;
 
-#[test]
-fn test_basic_expression() {
-    let config = Config::new(&mut args()).unwrap();
+macro_rules! make_rox_test {
+    ($fn_name:ident, $filename:literal) => {
+        #[test]
+        fn $fn_name() {
+            let config = Config::new(&mut args()).unwrap();
 
-    match config.run_file_with_filename("rox_tests/basic_expr_test.rox") {
-        Err(msg) => panic!("{}", msg),
-        _ => (),
+            match config.run_file_with_filename($filename) {
+                Err(msg) => panic!("{}", msg),
+                _ => (),
+            };
+        }
     };
 }
 
-#[test]
-fn test_local_var_scope() {
-    let config = Config::new(&mut args()).unwrap();
+macro_rules! make_rox_test_panic {
+    ($fn_name:ident, $filename:literal) => {
+        #[test]
+        #[should_panic]
+        fn $fn_name() {
+            let config = Config::new(&mut args()).unwrap();
 
-    match config.run_file_with_filename("rox_tests/local_var_scope.rox") {
-        Err(msg) => panic!("{}", msg),
-        _ => (),
+            match config.run_file_with_filename($filename) {
+                Err(_) => panic!("Correctly panicked in test for {}", $filename),
+                _ => (),
+            };
+        }
     };
 }
 
-#[test]
-#[should_panic]
-fn test_local_var_reassignment() {
-    let config = Config::new(&mut args()).unwrap();
+make_rox_test!(test_basic_expression, "rox_tests/basic_expr_test.rox");
+make_rox_test!(test_local_var_scope, "rox_tests/local_var_scope.rox");
 
-    match config.run_file_with_filename("rox_tests/local_var_reassign.rox") {
-        Err(_) => panic!("Correctly failed reassignment test"),
-        _ => (),
-    };
-}
+make_rox_test_panic!(
+    test_local_var_reassignment,
+    "rox_tests/local_var_reassign.rox"
+);
+
+make_rox_test!(test_basic_if_statement, "rox_tests/if_statement.rox");

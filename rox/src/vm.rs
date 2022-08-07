@@ -190,7 +190,9 @@ impl VM {
                 OpCode::OpNil => self.stack.borrow_mut().push(Value::Nil),
                 OpCode::OpNot => {
                     let val = self.stack.borrow_mut().pop()?;
-                    self.stack.borrow_mut().push(self.is_falsey(val));
+                    self.stack
+                        .borrow_mut()
+                        .push(Value::Boolean(self.is_falsey(val)));
                 }
                 OpCode::OpNegate => {
                     let val = self.stack.borrow_mut().pop()?;
@@ -257,15 +259,18 @@ impl VM {
                 OpCode::OpPrint => {
                     println!("{}", self.stack.borrow_mut().pop()?);
                 }
+                OpCode::OpJumpIfFalse(jump) => {
+                    let jump_offset = jump.unwrap();
+                    if self.is_falsey(self.stack.borrow().peek(0)?) {
+                        *self.ip.borrow_mut() += jump_offset;
+                    }
+                }
             }
         }
     }
 
-    fn is_falsey(&self, value: Value) -> Value {
-        match value {
-            Value::Boolean(false) | Value::Nil => Value::Boolean(true),
-            _ => Value::Boolean(false),
-        }
+    fn is_falsey(&self, value: Value) -> bool {
+        matches!(value, Value::Boolean(false) | Value::Nil)
     }
 
     fn concatenate<'a>(&self, lhs: &'a RoxString, rhs: &'a RoxString) {
