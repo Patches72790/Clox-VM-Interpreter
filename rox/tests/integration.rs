@@ -32,12 +32,10 @@ macro_rules! make_rox_test_panic {
 
 make_rox_test!(test_basic_expression, "rox_tests/basic_expr_test.rox");
 make_rox_test!(test_local_var_scope, "rox_tests/local_var_scope.rox");
-
 make_rox_test_panic!(
     test_local_var_reassignment,
     "rox_tests/local_var_reassign.rox"
 );
-
 make_rox_test!(test_basic_if_statement, "rox_tests/if_statement.rox");
-
 make_rox_test!(test_if_else_statement, "rox_tests/if_else_statement.rox");
+make_rox_test!(test_if_statement_scope, "rox_tests/if_statement_scope.rox");
