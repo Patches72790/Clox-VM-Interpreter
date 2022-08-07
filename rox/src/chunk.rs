@@ -209,6 +209,9 @@ impl Chunk {
             OpCode::OpJumpIfFalse(offset) => {
                 Chunk::simple_instruction(format!("OP_JUMP_IF_FALSE {}", offset.unwrap()).as_str())
             }
+            OpCode::OpJump(offset) => {
+                Chunk::simple_instruction(format!("OP_JUMP {}", offset.unwrap()).as_str())
+            }
         };
     }
 
@@ -224,16 +227,4 @@ impl Chunk {
     fn simple_instruction(name: &str) {
         print!("{:<25} |", name);
     }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_write_chunk() {}
-
-    #[test]
-    fn test_write_constants() {}
-
-    #[test]
-    fn test_disassemble_chunk() {}
 }

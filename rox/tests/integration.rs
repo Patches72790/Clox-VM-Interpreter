@@ -39,3 +39,5 @@ make_rox_test_panic!(
 );
 
 make_rox_test!(test_basic_if_statement, "rox_tests/if_statement.rox");
+
+make_rox_test!(test_if_else_statement, "rox_tests/if_else_statement.rox");

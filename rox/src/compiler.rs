@@ -416,9 +416,18 @@ impl<'a> Compiler<'a> {
         self.consume(TokenType::RightParen, "Expect ')' after condition.");
 
         let then_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
+        self.emit_byte(OpCode::OpPop);
         self.statement();
 
-        self.patch_jump(then_jump);
+        let else_jump = self.emit_jump(OpCode::OpJump(None));
+
+        self.patch_jump(then_jump, OpCode::OpJumpIfFalse(None));
+        self.emit_byte(OpCode::OpPop);
+
+        if self.match_token(TokenType::Else) {
+            self.statement();
+        }
+        self.patch_jump(else_jump, OpCode::OpJump(None));
     }
 
     fn emit_jump(&'a self, instruction: OpCode) -> usize {
@@ -426,11 +435,17 @@ impl<'a> Compiler<'a> {
         self.chunk.borrow().count() - 1
     }
 
-    fn patch_jump(&'a self, offset: usize) {
-        let jump = self.chunk.borrow().count() - offset;
+    fn patch_jump(&'a self, offset: usize, opcode: OpCode) {
+        let jump = self.chunk.borrow().count() - offset - 1;
 
         // patch in the jump offset from the jump opcode to past the then clause
-        self.chunk.borrow_mut().code[offset] = OpCode::OpJumpIfFalse(Some(jump))
+        match opcode {
+            OpCode::OpJumpIfFalse(_) => {
+                self.chunk.borrow_mut().code[offset] = OpCode::OpJumpIfFalse(Some(jump))
+            }
+            OpCode::OpJump(_) => self.chunk.borrow_mut().code[offset] = OpCode::OpJump(Some(jump)),
+            _ => (),
+        }
     }
 
     fn block(&'a self) {

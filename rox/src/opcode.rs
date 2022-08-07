@@ -26,6 +26,7 @@ pub enum OpCode {
     OpGetLocal(usize),
     OpSetLocal(usize),
     OpJumpIfFalse(Option<usize>),
+    OpJump(Option<usize>),
 }
 
 impl std::fmt::Display for OpCode {
@@ -53,6 +54,7 @@ impl std::fmt::Display for OpCode {
             OpCode::OpSetLocal(_) => write!(f, "OP_SET_LOCAL"),
             OpCode::OpGetLocal(_) => write!(f, "OP_GET_LOCAL"),
             OpCode::OpJumpIfFalse(_) => write!(f, "OP_JUMP_IF_FALSE"),
+            OpCode::OpJump(_) => write!(f, "OP_JUMP"),
         }
     }
 }

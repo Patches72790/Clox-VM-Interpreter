@@ -1,0 +1,7 @@
+var a = 99;
+
+if (a > 100) {
+    print "hello";
+} else {
+    print "world";
+}

@@ -1,0 +1,9 @@
+var a = 123;
+
+if (a > 100) {
+    // shadowing the variable here
+    var a = 456;
+    print a;
+}
+
+print a;

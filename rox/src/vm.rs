@@ -265,6 +265,10 @@ impl VM {
                         *self.ip.borrow_mut() += jump_offset;
                     }
                 }
+                OpCode::OpJump(jump) => {
+                    let jump_offset = jump.unwrap();
+                    *self.ip.borrow_mut() += jump_offset;
+                }
             }
         }
     }
