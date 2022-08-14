@@ -39,3 +39,6 @@ make_rox_test_panic!(
 make_rox_test!(test_basic_if_statement, "rox_tests/if_statement.rox");
 make_rox_test!(test_if_else_statement, "rox_tests/if_else_statement.rox");
 make_rox_test!(test_if_statement_scope, "rox_tests/if_statement_scope.rox");
+make_rox_test!(test_logical_expr, "rox_tests/logical_expr.rox");
+make_rox_test!(test_while_loop, "rox_tests/while_loop.rox");
+make_rox_test!(test_for_loop, "rox_tests/for_loop.rox");

@@ -1,6 +1,7 @@
 mod chunk;
 mod compiler;
 mod error;
+mod frontend;
 mod hashtable;
 mod object;
 mod object_list;
@@ -13,7 +14,6 @@ mod token;
 mod types;
 mod value;
 mod vm;
-mod frontend;
 
 pub use chunk::*;
 pub use compiler::*;

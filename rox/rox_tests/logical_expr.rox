@@ -1,0 +1,11 @@
+var a = 123;
+
+if (a > 125 or (a = 125)) {
+    print a;
+}
+
+var b;
+if (a == 125 and (b = 25)) {
+    print a;
+    print b;
+}

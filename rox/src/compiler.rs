@@ -51,6 +51,16 @@ impl<'a> Compiler<'a> {
         let line = token.line;
 
         match t_type {
+            TokenType::And => ParseRule {
+                precedence: Precedence::PrecAnd,
+                infix_fn: Some(Box::new(|can_assign| self.and_(can_assign))),
+                prefix_fn: None,
+            },
+            TokenType::Or => ParseRule {
+                precedence: Precedence::PrecOr,
+                infix_fn: Some(Box::new(|can_assign| self.or(can_assign))),
+                prefix_fn: None,
+            },
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
                 infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
@@ -384,8 +394,12 @@ impl<'a> Compiler<'a> {
     fn statement(&'a self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else if self.match_token(TokenType::For) {
+            self.for_statement();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
+        } else if self.match_token(TokenType::While) {
+            self.while_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -407,6 +421,73 @@ impl<'a> Compiler<'a> {
             TokenType::Semicolon,
             "Expected ';' after expression statement.",
         );
+        self.emit_byte(OpCode::OpPop);
+    }
+
+    fn for_statement(&'a self) {
+        self.begin_scope();
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
+
+        // compile initialization statement
+        if self.match_token(TokenType::Semicolon) {
+            // no initializer
+        } else if self.match_token(TokenType::Var) {
+            self.var_declaration();
+        } else {
+            self.expression_statement();
+        }
+
+        let mut loop_start = self.chunk.borrow().count();
+
+        // compile conditional statement
+        let mut exit_jump = None;
+        if !self.match_token(TokenType::Semicolon) {
+            self.expression();
+            self.consume(TokenType::Semicolon, "Expect ';' after loop condition.");
+
+            exit_jump = Some(self.emit_jump(OpCode::OpJumpIfFalse(None)));
+            self.emit_byte(OpCode::OpPop);
+        }
+
+        // compile increment statement
+        if !self.match_token(TokenType::RightParen) {
+            let body_jump = self.emit_jump(OpCode::OpJump(None));
+            let incr_start = self.chunk.borrow().count();
+
+            self.expression();
+            self.emit_byte(OpCode::OpPop);
+            self.consume(TokenType::RightParen, "Expect ')' after for clauses.");
+
+            self.emit_loop(loop_start);
+            loop_start = incr_start;
+            self.patch_jump(body_jump, OpCode::OpJump(None));
+        }
+
+        self.statement();
+        self.emit_loop(loop_start);
+
+        // compile code to quit for loop early when condition is false
+        if let Some(exit_jump_offset) = exit_jump {
+            self.patch_jump(exit_jump_offset, OpCode::OpJumpIfFalse(None));
+            self.emit_byte(OpCode::OpPop);
+        }
+
+        self.end_scope();
+    }
+
+    fn while_statement(&'a self) {
+        let loop_start = self.chunk.borrow().count();
+
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition.");
+
+        let exit_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
+        self.emit_jump(OpCode::OpPop);
+        self.statement();
+        self.emit_loop(loop_start);
+
+        self.patch_jump(exit_jump, OpCode::OpJumpIfFalse(None));
         self.emit_byte(OpCode::OpPop);
     }
 
@@ -469,6 +550,26 @@ impl<'a> Compiler<'a> {
         for _ in 0..num_removed {
             self.emit_byte(OpCode::OpPop);
         }
+    }
+
+    fn and_(&'a self, _can_assign: bool) {
+        let end_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
+
+        self.emit_byte(OpCode::OpPop);
+        self.parse(&Precedence::PrecAnd);
+
+        self.patch_jump(end_jump, OpCode::OpJumpIfFalse(None));
+    }
+
+    fn or(&'a self, _can_assign: bool) {
+        let else_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
+        let end_jump = self.emit_jump(OpCode::OpJump(None));
+
+        self.patch_jump(else_jump, OpCode::OpJumpIfFalse(None));
+        self.emit_byte(OpCode::OpPop);
+
+        self.parse(&Precedence::PrecOr);
+        self.patch_jump(end_jump, OpCode::OpJump(None));
     }
 
     fn number(&'a self, num: RoxNumber, line: usize, _can_assign: bool) {
@@ -600,6 +701,15 @@ impl<'a> Compiler<'a> {
                 operator_type
             ),
         }
+    }
+
+    fn emit_loop(&self, loop_start: usize) {
+        let offset = self.chunk.borrow().count() - loop_start + 1;
+        if offset > u16::MAX.into() {
+            self.error("Loop body to large");
+        }
+
+        self.emit_byte(OpCode::OpLoop(offset));
     }
 
     fn emit_bytes(&self, byte1: OpCode, byte2: OpCode) {

@@ -269,6 +269,9 @@ impl VM {
                     let jump_offset = jump.unwrap();
                     *self.ip.borrow_mut() += jump_offset;
                 }
+                OpCode::OpLoop(jump) => {
+                    *self.ip.borrow_mut() -= jump;
+                }
             }
         }
     }
@@ -349,7 +352,7 @@ impl VM {
         }
 
         if DEBUG_MODE {
-            println!("|  IP  | Line | OpCode                    | Stack");
+            self.chunk.borrow().disassemble_chunk("OpCode Debug");
         }
         // run vm with chunk filled with compiled opcodes
         self.run()

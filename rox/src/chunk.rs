@@ -125,12 +125,15 @@ impl Chunk {
     ///its list of bytecode instructions.
     ///
     pub fn disassemble_chunk(&self, name: &str) {
-        println!("== {} ==", name);
+        println!("=+=+=+= {} =+=+=+=", name);
 
         for (offset, byte) in self.code.iter().enumerate() {
             // offset into code vector is just the index
             Chunk::disassemble_instruction(byte, offset, self);
+            println!();
         }
+
+        println!("=+=+=+= Finished printing opcodes! =+=+=+=\n")
     }
 
     ///
@@ -211,6 +214,9 @@ impl Chunk {
             }
             OpCode::OpJump(offset) => {
                 Chunk::simple_instruction(format!("OP_JUMP {}", offset.unwrap()).as_str())
+            }
+            OpCode::OpLoop(offset) => {
+                Chunk::simple_instruction(format!("OP_LOOP {}", offset).as_str())
             }
         };
     }
