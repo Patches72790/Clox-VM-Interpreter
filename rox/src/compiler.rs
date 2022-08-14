@@ -576,7 +576,6 @@ impl<'a> Compiler<'a> {
         self.emit_constant(Value::Number(num), line);
     }
 
-    ///
     /// Writes a constant value to the chunk, bypassing
     /// emit_byte since the Chunk already has a convenience
     /// function for such a task.
@@ -706,7 +705,7 @@ impl<'a> Compiler<'a> {
     fn emit_loop(&self, loop_start: usize) {
         let offset = self.chunk.borrow().count() - loop_start + 1;
         if offset > u16::MAX.into() {
-            self.error("Loop body to large");
+            self.error("Loop body too large");
         }
 
         self.emit_byte(OpCode::OpLoop(offset));

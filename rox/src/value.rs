@@ -1,7 +1,7 @@
 use crate::{ObjectType, RoxMap, RoxNumber, RoxObject, RoxString, Table, DEBUG_MODE};
 use std::ops;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Values {
     pub count: usize,
     pub values: Vec<Value>,
@@ -35,18 +35,17 @@ impl Values {
     ) -> (usize, &mut Value) {
         // keep a globals map so as not to duplicate globals in values array
         if let Some(global_indices) = global_indices {
-            match &value {
-                Value::Object(obj) => match &obj.object_type {
+            if let Value::Object(obj) = &value {
+                match &obj.object_type {
                     ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
                         Some(idx) => {
                             if DEBUG_MODE {
                                 println!("Global indices: {:?}", global_indices);
                                 println!("Values array: {:?}", self.values);
                             }
-                            let found_global = self.values.get_mut(*idx).expect(&format!(
-                                "Error finding global '{}' at index {}",
-                                rox_string, idx,
-                            ));
+                            let found_global = self.values.get_mut(*idx).unwrap_or_else(|| {
+                                panic!("Error finding global '{}' at index {}", rox_string, idx,)
+                            });
                             return (*idx, found_global);
                         }
                         None => {
@@ -60,13 +59,12 @@ impl Values {
 
                             let value_ref = self.values.get_mut(index).unwrap();
 
-                            global_indices.set(&rox_string, &index);
+                            global_indices.set(rox_string, &index);
                             return (index, value_ref);
                         }
                     },
                     _ => (),
-                },
-                _ => (),
+                }
             };
         }
         self.values.push(value);
@@ -101,10 +99,7 @@ impl PartialEq for Value {
                 Value::Boolean(b_bool) => a_bool == b_bool,
                 _ => false,
             },
-            Value::Nil => match other {
-                Value::Nil => true,
-                _ => false,
-            },
+            Value::Nil => matches!(other, Value::Nil),
             Value::Object(obj) => match &obj.object_type {
                 ObjectType::ObjString(string_one) => match other {
                     Value::Object(obj_two) => match &obj_two.object_type {

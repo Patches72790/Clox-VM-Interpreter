@@ -46,8 +46,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let vm = VM::new();
 
-            vm.interpret("123 + 456").unwrap();
-            vm.interpret("\"123\" == \"123\"").unwrap();
+            vm.interpret("print 123 + 456;").unwrap();
         })
     });
 }
