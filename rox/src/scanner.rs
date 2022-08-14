@@ -8,6 +8,7 @@ use std::{iter::Peekable, str::CharIndices};
 
 type Peeker<'a> = Peekable<CharIndices<'a>>;
 
+#[derive(Default)]
 pub struct Scanner {
     had_error: RefCell<bool>,
 }
@@ -20,10 +21,7 @@ impl Scanner {
     }
 
     fn _is_at_end(line_chars: &mut Peeker) -> bool {
-        match line_chars.peek() {
-            Some(_) => false,
-            None => true,
-        }
+        line_chars.peek().is_none()
     }
 
     fn check_next(
@@ -85,14 +83,35 @@ impl Scanner {
         let mut id_chars = id.char_indices().peekable();
         match id_chars.next().unwrap_or((0, '!')) {
             (.., 'a') => Scanner::check_keyword(&mut id_chars, 2, "nd", id, TokenType::And),
-            (.., 'c') => Scanner::check_keyword(&mut id_chars, 4, "lass", id, TokenType::Class),
+            (.., 'b') => Scanner::check_keyword(&mut id_chars, 4, "reak", id, TokenType::Break),
+            (.., 'c') => match id_chars.next().unwrap_or((0, '!')) {
+                (.., 'a') => Scanner::check_keyword(&mut id_chars, 2, "se", id, TokenType::Case),
+                (.., 'l') => Scanner::check_keyword(&mut id_chars, 3, "ass", id, TokenType::Class),
+                (.., 'o') => {
+                    Scanner::check_keyword(&mut id_chars, 6, "ntinue", id, TokenType::Continue)
+                }
+                (.., '!') => TokenType::Error(
+                    "Error grabbing next char after 'c' in scanning identifier.".to_string(),
+                ),
+                _ => TokenType::Identifier(Rc::new(RoxString::new(id))),
+            },
+            (.., 'd') => Scanner::check_keyword(&mut id_chars, 6, "efault", id, TokenType::Default),
             (.., 'e') => Scanner::check_keyword(&mut id_chars, 3, "lse", id, TokenType::Else),
             (.., 'i') => Scanner::check_keyword(&mut id_chars, 1, "f", id, TokenType::If),
             (.., 'n') => Scanner::check_keyword(&mut id_chars, 2, "il", id, TokenType::Nil),
             (.., 'o') => Scanner::check_keyword(&mut id_chars, 1, "r", id, TokenType::Or),
             (.., 'p') => Scanner::check_keyword(&mut id_chars, 4, "rint", id, TokenType::Print),
             (.., 'r') => Scanner::check_keyword(&mut id_chars, 5, "eturn", id, TokenType::Return),
-            (.., 's') => Scanner::check_keyword(&mut id_chars, 4, "uper", id, TokenType::Super),
+            (.., 's') => match id_chars.next().unwrap_or((0, '!')) {
+                (.., 'u') => Scanner::check_keyword(&mut id_chars, 3, "per", id, TokenType::Super),
+                (.., 'w') => {
+                    Scanner::check_keyword(&mut id_chars, 4, "itch", id, TokenType::Switch)
+                }
+                (.., '!') => TokenType::Error(
+                    "Error grabbing next char after 's' in scanning identifier.".to_string(),
+                ),
+                _ => TokenType::Identifier(Rc::new(RoxString::new(id))),
+            },
             (.., 'v') => Scanner::check_keyword(&mut id_chars, 2, "ar", id, TokenType::Var),
             (.., 'w') => Scanner::check_keyword(&mut id_chars, 4, "hile", id, TokenType::While),
             (.., 'f') => match id_chars.next().unwrap_or((0, '!')) {
@@ -146,6 +165,7 @@ impl Scanner {
             let mut line_chars: Peeker = line.char_indices().peekable();
             while let Some((char_num, ch)) = line_chars.next() {
                 let token_type = match ch {
+                    ':' => TokenType::Colon,
                     '(' => TokenType::LeftParen,
                     ')' => TokenType::RightParen,
                     '{' => TokenType::LeftBrace,
@@ -154,7 +174,7 @@ impl Scanner {
                     ';' => TokenType::Semicolon,
                     '.' => {
                         if line_chars.peek().unwrap_or(&(0, ' ')).1.is_numeric() {
-                            while let Some(_) = line_chars.next_if(|(_, c)| c.is_numeric()) {}
+                            while line_chars.next_if(|(_, c)| c.is_numeric()).is_some() {}
                             TokenType::Error(String::from(
                                 "Cannot begin a number in Rox with a dot.",
                             ))
@@ -192,7 +212,7 @@ impl Scanner {
                     ' ' | '\n' | '\t' | '\r' => continue, // skip whitespace
                     '/' => {
                         if line_chars.peek().unwrap_or(&(0, ' ')).1 == '/' {
-                            while let Some((_, c)) = line_chars.next() {
+                            for (_, c) in line_chars.by_ref() {
                                 match c {
                                     '\n' => break,
                                     _ => continue,
@@ -209,9 +229,8 @@ impl Scanner {
                     _ => TokenType::Error(String::from("Unexpected char read from source")),
                 };
 
-                match token_type {
-                    TokenType::Error(_) => *self.had_error.borrow_mut() = true,
-                    _ => (),
+                if let TokenType::Error(_) = token_type {
+                    *self.had_error.borrow_mut() = true
                 }
 
                 tokens.push(self.scan_token(token_type, line_num + 1, char_num + 1));

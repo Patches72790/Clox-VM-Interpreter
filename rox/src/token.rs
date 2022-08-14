@@ -190,6 +190,15 @@ pub enum TokenType {
     Var,
     While,
 
+    Break,
+    Continue,
+
+    // switch
+    Colon,
+    Default,
+    Switch,
+    Case,
+
     Error(String),
     EOF,
 }
