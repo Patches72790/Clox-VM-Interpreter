@@ -150,7 +150,7 @@ impl Scanner {
             .map(|(_, c)| c.to_string())
             .collect::<String>();
 
-        if result == suffix && char_peeker.next() == None {
+        if result == suffix && char_peeker.next().is_none() {
             t_type
         } else {
             TokenType::Identifier(Rc::new(RoxString::new(original_str)))

@@ -5,15 +5,11 @@ pub use crate::object::roxstring::RoxString;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoxObject {
     pub object_type: ObjectType,
-    pub next_object: Option<*mut RoxObject>,
 }
 
 impl RoxObject {
     pub fn new(object_type: ObjectType) -> RoxObject {
-        RoxObject {
-            object_type,
-            next_object: None,
-        }
+        RoxObject { object_type }
     }
 }
 

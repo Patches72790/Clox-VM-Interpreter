@@ -44,7 +44,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Basic expressions", |b| {
         b.iter(|| {
-            let vm = VM::new();
+            let mut vm = VM::new();
 
             vm.interpret("print 123 + 456;").unwrap();
         })

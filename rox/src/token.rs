@@ -34,7 +34,7 @@ impl FromIterator<Token> for TokenStream {
     }
 }
 
-impl<'a> TokenStream {
+impl TokenStream {
     pub fn new(tokens: Vec<Token>) -> TokenStream {
         TokenStream(tokens)
     }

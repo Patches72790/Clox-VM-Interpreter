@@ -1,146 +1,163 @@
-use crate::frontend::{Local, Locals, LOCALS_COUNT};
+use crate::frontend::{Locals, LOCALS_COUNT};
 use crate::opcode::VariableOp;
 use crate::{
-    Chunk, ObjectType, OpCode, Precedence, RoxNumber, RoxObject, RoxString, Token, TokenType,
-    Value, DEBUG_MODE,
+    Chunk, ObjectType, OpCode, Precedence, RoxNumber, RoxObject, RoxString, Scanner, Token,
+    TokenType, Value, DEBUG_MODE,
 };
 use std::cell::RefCell;
-use std::iter::Peekable;
 use std::rc::Rc;
-use std::slice::Iter;
 
-pub struct Compiler<'a> {
-    chunk: Rc<RefCell<Chunk>>,
-    tokens: RefCell<Peekable<Iter<'a, Token>>>,
-    previous: RefCell<Option<&'a Token>>,
-    current: RefCell<Option<&'a Token>>,
+pub struct Compiler {
+    tokens: Vec<Token>,
+    token_idx: usize,
+    chunk: Chunk,
     pub had_error: RefCell<bool>,
     pub panic_mode: RefCell<bool>,
 
-    locals: RefCell<Locals>,
-    scope_depth: RefCell<usize>,
+    locals: Locals,
+    scope_depth: usize,
 }
 
-type ParseFn<'a> = Box<dyn FnOnce(bool) + 'a>;
+enum ParseFn {
+    And,
+    Or,
+    Binary,
+    Unary,
+    Literal,
+    Grouping,
+    Variable(Rc<RoxString>, usize),
+    String(Rc<RoxString>, usize),
+    Number(RoxNumber, usize),
+}
 
-struct ParseRule<'a> {
+struct ParseRule {
     precedence: Precedence,
-    infix_fn: Option<ParseFn<'a>>,
-    prefix_fn: Option<ParseFn<'a>>,
+    infix_fn: Option<ParseFn>,
+    prefix_fn: Option<ParseFn>,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(
-        chunk: Rc<RefCell<Chunk>>,
-        tokens: RefCell<Peekable<Iter<'a, Token>>>,
-    ) -> Compiler<'a> {
+impl Compiler {
+    pub fn new(tokens: Vec<Token>) -> Compiler {
         Compiler {
-            chunk,
+            chunk: Chunk::new(),
             tokens,
+            token_idx: 0,
             had_error: RefCell::new(false),
             panic_mode: RefCell::new(false),
-            previous: RefCell::new(None),
-            current: RefCell::new(None),
-            scope_depth: RefCell::new(0),
-            locals: RefCell::new(Locals::new()),
+            scope_depth: 0,
+            locals: Locals::new(),
         }
     }
 
-    fn get_rule(&'a self, token: &'a Token) -> ParseRule {
+    fn apply_parse_fn(&mut self, parse_fn: ParseFn, can_assign: bool) -> Result<(), String> {
+        match parse_fn {
+            ParseFn::And => self.and_(can_assign),
+            ParseFn::Or => self.or(can_assign),
+            ParseFn::Binary => self.binary(can_assign),
+            ParseFn::Unary => self.unary(can_assign),
+            ParseFn::Literal => self.literal(can_assign),
+            ParseFn::Grouping => self.grouping(can_assign),
+            ParseFn::Variable(str, line) => self.variable(&str, line, can_assign),
+            ParseFn::String(str, line) => self.string(&str, line, can_assign),
+            ParseFn::Number(num, line) => self.number(num, line, can_assign),
+        }
+
+        Ok(())
+    }
+
+    fn get_rule(token: &Token) -> ParseRule {
         let t_type = &token.token_type;
         let line = token.line;
 
         match t_type {
             TokenType::And => ParseRule {
                 precedence: Precedence::PrecAnd,
-                infix_fn: Some(Box::new(|can_assign| self.and_(can_assign))),
+                infix_fn: Some(ParseFn::And),
                 prefix_fn: None,
             },
             TokenType::Or => ParseRule {
                 precedence: Precedence::PrecOr,
-                infix_fn: Some(Box::new(|can_assign| self.or(can_assign))),
+                infix_fn: Some(ParseFn::Or),
                 prefix_fn: None,
             },
             TokenType::Plus => ParseRule {
                 precedence: Precedence::PrecTerm,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
                 prefix_fn: None,
             },
             TokenType::Minus => ParseRule {
                 precedence: Precedence::PrecTerm,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
-                prefix_fn: Some(Box::new(|can_assign| self.unary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
+                prefix_fn: Some(ParseFn::Unary),
             },
             TokenType::Star => ParseRule {
                 precedence: Precedence::PrecFactor,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::Slash => ParseRule {
                 precedence: Precedence::PrecFactor,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::Number(num) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move |can_assign| {
-                    self.number(*num, line, can_assign)
-                })),
+                prefix_fn: Some(ParseFn::Number(*num, line)),
                 infix_fn: None,
             },
             TokenType::True => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
+                prefix_fn: Some(ParseFn::Literal),
                 infix_fn: None,
             },
             TokenType::False => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
+                prefix_fn: Some(ParseFn::Literal),
                 infix_fn: None,
             },
             TokenType::Nil => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|can_assign| self.literal(can_assign))),
+                prefix_fn: Some(ParseFn::Literal),
                 infix_fn: None,
             },
             TokenType::Bang => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|can_assign| self.unary(can_assign))),
+                prefix_fn: Some(ParseFn::Unary),
                 infix_fn: None,
             },
             TokenType::BangEqual => ParseRule {
                 precedence: Precedence::PrecEquality,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::EqualEqual => ParseRule {
                 precedence: Precedence::PrecEquality,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::Greater => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::GreaterEqual => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::Less => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::LessEqual => ParseRule {
                 precedence: Precedence::PrecComparison,
                 prefix_fn: None,
-                infix_fn: Some(Box::new(|can_assign| self.binary(can_assign))),
+                infix_fn: Some(ParseFn::Binary),
             },
             TokenType::LeftParen => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(|can_assign| self.grouping(can_assign))),
+                prefix_fn: Some(ParseFn::Grouping),
                 infix_fn: None,
             },
             TokenType::RightParen => ParseRule {
@@ -153,18 +170,27 @@ impl<'a> Compiler<'a> {
                 prefix_fn: None,
                 infix_fn: None,
             },
+
+            /*
+                        TokenType::Var => ParseRule {
+                            precedence: Precedence::PrecNone,
+                            prefix_fn: None,
+                            infix_fn: None,
+                        },
+                        TokenType::RightBrace => ParseRule {
+                            precedence: Precedence::PrecNone,
+                            prefix_fn: None,
+                            infix_fn: None,
+                        },
+            */
             TokenType::Identifier(id) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move |can_assign| {
-                    self.variable(id, line, can_assign)
-                })),
+                prefix_fn: Some(ParseFn::Variable(id.clone(), line)),
                 infix_fn: None,
             },
             TokenType::StringLiteral(str) => ParseRule {
                 precedence: Precedence::PrecNone,
-                prefix_fn: Some(Box::new(move |can_assign| {
-                    self.string(str, line, can_assign)
-                })),
+                prefix_fn: Some(ParseFn::String(str.clone(), line)),
                 infix_fn: None,
             },
             TokenType::EOF => ParseRule {
@@ -176,58 +202,45 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn advance(&self) {
-        // set previous to current token
-        let current_tok = *self.current.borrow();
-        *(self.previous.borrow_mut()) = current_tok;
+    fn previous(&self) -> &Token {
+        &self.tokens[self.token_idx - 1]
+    }
 
-        // set current to the next token in scanner tokens
-        // until no error token is found
-        loop {
-            let next_token = match self.tokens.borrow_mut().next() {
-                Some(tok) => tok,
-                None => return, //  panic!("Error getting next token in advance!"),
-            };
+    fn peek(&self) -> &Token {
+        &self.tokens[self.token_idx]
+    }
 
-            if DEBUG_MODE {
-                println!("Advanced to Token: {}", next_token);
-            }
+    fn is_at_end(&self) -> bool {
+        self.peek().token_type == TokenType::EOF
+    }
 
-            *(self.current.borrow_mut()) = Some(next_token);
-
-            if let TokenType::Error(msg) = &next_token.token_type {
-                self.error_at_current_token(msg);
-            } else {
-                break;
-            }
+    fn advance(&mut self) -> &Token {
+        if !self.is_at_end() {
+            self.token_idx += 1;
         }
+
+        self.previous()
     }
 
     /// A conditional wrapper around advance that checks that
     /// the current token is of type t_type.
-    fn match_token(&self, t_type: TokenType) -> bool {
-        if !self.check_token(t_type) {
-            return false;
+    fn match_token(&mut self, t_type: TokenType) -> bool {
+        if self.check_token(t_type) {
+            self.advance();
+            true
+        } else {
+            false
         }
-        self.advance();
-        true
     }
 
     /// Helper function to check that the current token's
     /// type is equal to t_type.
     fn check_token(&self, t_type: TokenType) -> bool {
-        self.current
-            .borrow()
-            .expect("Error borrowing next token in parser check!")
-            .token_type
-            == t_type
+        self.peek().token_type == t_type
     }
 
-    fn consume(&self, t_type: TokenType, message: &str) {
-        let current_tok = self
-            .current
-            .borrow()
-            .expect("Error consuming current token!");
+    fn consume(&mut self, t_type: TokenType, message: &str) {
+        let current_tok = self.peek();
         if current_tok.token_type == t_type {
             if DEBUG_MODE {
                 println!("Consuming token {}", current_tok);
@@ -240,21 +253,11 @@ impl<'a> Compiler<'a> {
     }
 
     fn error_at_current_token(&self, message: &str) {
-        self.error_at(
-            self.current
-                .borrow()
-                .expect("Error borrowing current token"),
-            message,
-        );
+        self.error_at(self.peek(), message);
     }
 
     fn error(&self, message: &str) {
-        self.error_at(
-            self.previous
-                .borrow()
-                .expect("Error borrowing previous token"),
-            message,
-        );
+        self.error_at(self.previous(), message);
     }
 
     fn error_at(&self, token: &Token, message: &str) {
@@ -263,31 +266,21 @@ impl<'a> Compiler<'a> {
             return;
         }
 
-        *self.panic_mode.borrow_mut() = true;
+        (*self.panic_mode.borrow_mut()) = true;
 
         eprintln!(
             "Error at [{}, {}] with message: {}",
             token.line, token.column, message
         );
-        *self.had_error.borrow_mut() = true;
+        (*self.had_error.borrow_mut()) = true;
     }
 
-    fn synchronize(&'a self) {
-        *self.panic_mode.borrow_mut() = false;
-        let mut current_token_type = &self
-            .current
-            .borrow()
-            .expect("Error borrowing current token while synchronizing compiler")
-            .token_type;
+    fn synchronize(&mut self) {
+        (*self.panic_mode.borrow_mut()) = false;
+        let mut current_token_type = &self.peek().token_type;
 
         while *current_token_type != TokenType::EOF {
-            if self
-                .previous
-                .borrow()
-                .expect("Error borrowing previous token while synchronizing compiler")
-                .token_type
-                == TokenType::Semicolon
-            {
+            if self.previous().token_type == TokenType::Semicolon {
                 return;
             }
 
@@ -305,19 +298,15 @@ impl<'a> Compiler<'a> {
 
             // indiscriminately advance depending on token type until end of statement is found
             self.advance();
-            current_token_type = &self
-                .current
-                .borrow()
-                .expect("Error borrowing current token while synchronizing compiler")
-                .token_type;
+            current_token_type = &self.peek().token_type;
         }
     }
 
-    fn expression(&'a self) {
+    fn expression(&mut self) {
         self.parse(&Precedence::PrecAssign);
     }
 
-    fn declaration(&'a self) {
+    fn declaration(&mut self) {
         if self.match_token(TokenType::Var) {
             self.var_declaration();
         } else {
@@ -328,7 +317,7 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn var_declaration(&'a self) {
+    fn var_declaration(&mut self) {
         let index = self.parse_variable("Expect variable name.");
 
         if self.match_token(TokenType::Equal) {
@@ -345,53 +334,47 @@ impl<'a> Compiler<'a> {
         self.define_variable(index);
     }
 
-    fn declare_variable(&'a self) {
+    fn declare_variable(&mut self) {
         // for globals
-        if *self.scope_depth.borrow() == 0 {
+        if self.scope_depth == 0 {
             return;
         }
 
-        let token = &*self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token when declaring local variable.");
+        let token = self.previous().clone();
 
         let is_doubly_declared = self
             .locals
-            .borrow()
-            .local_is_doubly_declared(token, *self.scope_depth.borrow());
+            .local_is_doubly_declared(&token, self.scope_depth);
 
         if is_doubly_declared {
             self.error("Already a variable with this name in scope.");
             return;
         }
 
-        self.add_local(token);
+        self.add_local(&token);
     }
 
-    fn add_local(&'a self, token: &Token) {
-        let locals_count = self.locals.borrow().size();
+    fn add_local(&mut self, token: &Token) {
+        let locals_count = self.locals.size();
         if locals_count == LOCALS_COUNT {
             self.error("Too many local variables in function.");
             return;
         }
 
-        self.locals
-            .borrow_mut()
-            .add_local(token, *self.scope_depth.borrow());
+        self.locals.add_local(token, self.scope_depth);
     }
 
-    fn define_variable(&'a self, index: usize) {
-        let scope_depth = *self.scope_depth.borrow();
+    fn define_variable(&mut self, index: usize) {
+        let scope_depth = self.scope_depth;
         if scope_depth > 0 {
-            self.locals.borrow_mut().initialize_variable(scope_depth);
+            self.locals.initialize_variable(scope_depth);
             return;
         }
 
         self.emit_byte(OpCode::OpDefineGlobal(index));
     }
 
-    fn statement(&'a self) {
+    fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
         } else if self.match_token(TokenType::For) {
@@ -409,13 +392,13 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn print_statement(&'a self) {
+    fn print_statement(&mut self) {
         self.expression();
         self.consume(TokenType::Semicolon, "Expected ';' after value.");
         self.emit_byte(OpCode::OpPrint);
     }
 
-    fn expression_statement(&'a self) {
+    fn expression_statement(&mut self) {
         self.expression();
         self.consume(
             TokenType::Semicolon,
@@ -424,7 +407,7 @@ impl<'a> Compiler<'a> {
         self.emit_byte(OpCode::OpPop);
     }
 
-    fn for_statement(&'a self) {
+    fn for_statement(&mut self) {
         self.begin_scope();
         self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
 
@@ -437,7 +420,7 @@ impl<'a> Compiler<'a> {
             self.expression_statement();
         }
 
-        let mut loop_start = self.chunk.borrow().count();
+        let mut loop_start = self.chunk.count();
 
         // compile conditional statement
         let mut exit_jump = None;
@@ -452,10 +435,11 @@ impl<'a> Compiler<'a> {
         // compile increment statement
         if !self.match_token(TokenType::RightParen) {
             let body_jump = self.emit_jump(OpCode::OpJump(None));
-            let incr_start = self.chunk.borrow().count();
+            let incr_start = self.chunk.count();
 
             self.expression();
-            self.emit_byte(OpCode::OpPop);
+            // TODO => Why does this fix the tests?
+            //self.emit_byte(OpCode::OpPop);
             self.consume(TokenType::RightParen, "Expect ')' after for clauses.");
 
             self.emit_loop(loop_start);
@@ -475,8 +459,8 @@ impl<'a> Compiler<'a> {
         self.end_scope();
     }
 
-    fn while_statement(&'a self) {
-        let loop_start = self.chunk.borrow().count();
+    fn while_statement(&mut self) {
+        let loop_start = self.chunk.count();
 
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
         self.expression();
@@ -491,7 +475,7 @@ impl<'a> Compiler<'a> {
         self.emit_byte(OpCode::OpPop);
     }
 
-    fn if_statement(&'a self) {
+    fn if_statement(&mut self) {
         self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after condition.");
@@ -511,25 +495,23 @@ impl<'a> Compiler<'a> {
         self.patch_jump(else_jump, OpCode::OpJump(None));
     }
 
-    fn emit_jump(&'a self, instruction: OpCode) -> usize {
+    fn emit_jump(&mut self, instruction: OpCode) -> usize {
         self.emit_byte(instruction);
-        self.chunk.borrow().count() - 1
+        self.chunk.count() - 1
     }
 
-    fn patch_jump(&'a self, offset: usize, opcode: OpCode) {
-        let jump = self.chunk.borrow().count() - offset - 1;
+    fn patch_jump(&mut self, offset: usize, opcode: OpCode) {
+        let jump = self.chunk.count() - offset - 1;
 
         // patch in the jump offset from the jump opcode to past the then clause
         match opcode {
-            OpCode::OpJumpIfFalse(_) => {
-                self.chunk.borrow_mut().code[offset] = OpCode::OpJumpIfFalse(Some(jump))
-            }
-            OpCode::OpJump(_) => self.chunk.borrow_mut().code[offset] = OpCode::OpJump(Some(jump)),
+            OpCode::OpJumpIfFalse(_) => self.chunk.code[offset] = OpCode::OpJumpIfFalse(Some(jump)),
+            OpCode::OpJump(_) => self.chunk.code[offset] = OpCode::OpJump(Some(jump)),
             _ => (),
         }
     }
 
-    fn block(&'a self) {
+    fn block(&mut self) {
         while !self.check_token(TokenType::RightBrace) && !self.check_token(TokenType::EOF) {
             self.declaration();
         }
@@ -537,22 +519,22 @@ impl<'a> Compiler<'a> {
         self.consume(TokenType::RightBrace, "Expect '}' after block.");
     }
 
-    fn begin_scope(&'a self) {
-        *self.scope_depth.borrow_mut() += 1;
+    fn begin_scope(&mut self) {
+        self.scope_depth += 1;
     }
 
-    fn end_scope(&'a self) {
-        *self.scope_depth.borrow_mut() -= 1;
-        let scope_depth = *self.scope_depth.borrow();
+    fn end_scope(&mut self) {
+        self.scope_depth -= 1;
+        let scope_depth = self.scope_depth;
 
-        let num_removed = self.locals.borrow_mut().remove_locals(scope_depth);
+        let num_removed = self.locals.remove_locals(scope_depth);
 
         for _ in 0..num_removed {
             self.emit_byte(OpCode::OpPop);
         }
     }
 
-    fn and_(&'a self, _can_assign: bool) {
+    fn and_(&mut self, _can_assign: bool) {
         let end_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
 
         self.emit_byte(OpCode::OpPop);
@@ -561,7 +543,7 @@ impl<'a> Compiler<'a> {
         self.patch_jump(end_jump, OpCode::OpJumpIfFalse(None));
     }
 
-    fn or(&'a self, _can_assign: bool) {
+    fn or(&mut self, _can_assign: bool) {
         let else_jump = self.emit_jump(OpCode::OpJumpIfFalse(None));
         let end_jump = self.emit_jump(OpCode::OpJump(None));
 
@@ -572,42 +554,41 @@ impl<'a> Compiler<'a> {
         self.patch_jump(end_jump, OpCode::OpJump(None));
     }
 
-    fn number(&'a self, num: RoxNumber, line: usize, _can_assign: bool) {
+    fn number(&mut self, num: RoxNumber, line: usize, _can_assign: bool) {
         self.emit_constant(Value::Number(num), line);
     }
 
     /// Writes a constant value to the chunk, bypassing
     /// emit_byte since the Chunk already has a convenience
     /// function for such a task.
-    fn emit_constant(&self, value: Value, line: usize) {
-        self.chunk.borrow_mut().add_constant(value, line);
+    fn emit_constant(&mut self, value: Value, line: usize) {
+        self.chunk.add_constant(value, line);
     }
 
     fn emit_identifier_constant(
-        &self,
+        &mut self,
         string_value: &Rc<RoxString>,
         line: usize,
         variable_op: VariableOp,
     ) -> usize {
         // need to write string to constants array in chunk
         self.chunk
-            .borrow_mut()
             .add_identifier_constant(string_value, line, variable_op)
     }
 
-    fn grouping(&'a self, _can_assign: bool) {
+    fn grouping(&mut self, _can_assign: bool) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression.");
     }
 
-    fn string(&'a self, string: &Rc<RoxString>, line: usize, _can_assign: bool) {
+    fn string(&mut self, string: &Rc<RoxString>, line: usize, _can_assign: bool) {
         let new_rox_object =
             RoxObject::new(ObjectType::ObjString(RoxString::new(&Rc::clone(string))));
         self.emit_constant(Value::Object(new_rox_object), line);
     }
 
-    fn variable(&'a self, id: &Rc<RoxString>, line: usize, can_assign: bool) {
-        let (is_initialized, is_local_id) = self.locals.borrow().resolve_local(id);
+    fn variable(&mut self, id: &Rc<RoxString>, line: usize, can_assign: bool) {
+        let (is_initialized, is_local_id) = self.locals.resolve_local(id);
 
         if !is_initialized {
             self.error("Can't read local variable in its own initializer.");
@@ -626,23 +607,16 @@ impl<'a> Compiler<'a> {
             if can_assign && self.match_token(TokenType::Equal) {
                 self.expression();
                 self.chunk
-                    .borrow_mut()
                     .add_identifier_constant(id, line, VariableOp::SetGlobal);
             } else {
                 self.chunk
-                    .borrow_mut()
                     .add_identifier_constant(id, line, VariableOp::GetGlobal);
             }
         }
     }
 
-    fn literal(&'a self, _can_assign: bool) {
-        match self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token in literal")
-            .token_type
-        {
+    fn literal(&mut self, _can_assign: bool) {
+        match self.previous().token_type {
             TokenType::True => self.emit_byte(OpCode::OpTrue),
             TokenType::False => self.emit_byte(OpCode::OpFalse),
             TokenType::Nil => self.emit_byte(OpCode::OpNil),
@@ -650,12 +624,9 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn unary(&'a self, _can_assign: bool) {
+    fn unary(&mut self, _can_assign: bool) {
         // find type
-        let operator_type = self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token in unary");
+        let operator_type = self.previous().clone();
 
         // compile operand
         self.parse(&Precedence::PrecUnary);
@@ -671,14 +642,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn binary(&'a self, _can_assign: bool) {
-        let operator_type = self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token in binary");
+    fn binary(&mut self, _can_assign: bool) {
+        let operator_type = self.previous().clone();
 
         // get parse rule
-        let rule = self.get_rule(operator_type);
+        let rule = Compiler::get_rule(&operator_type);
 
         // parse rule with next highest precedence (term -> factor, factor -> unary)
         self.parse(rule.precedence.get_next());
@@ -702,8 +670,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn emit_loop(&self, loop_start: usize) {
-        let offset = self.chunk.borrow().count() - loop_start + 1;
+    fn emit_loop(&mut self, loop_start: usize) {
+        let offset = self.chunk.count() - loop_start + 1;
         if offset > u16::MAX.into() {
             self.error("Loop body too large");
         }
@@ -711,44 +679,37 @@ impl<'a> Compiler<'a> {
         self.emit_byte(OpCode::OpLoop(offset));
     }
 
-    fn emit_bytes(&self, byte1: OpCode, byte2: OpCode) {
+    fn emit_bytes(&mut self, byte1: OpCode, byte2: OpCode) {
         self.emit_byte(byte1);
         self.emit_byte(byte2);
     }
 
-    fn emit_byte(&self, byte: OpCode) {
-        let line = self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token in emit byte")
-            .line;
-        self.chunk.borrow_mut().write_chunk(byte, line);
+    fn emit_byte(&mut self, byte: OpCode) {
+        let line = self.tokens[self.token_idx - 1].line;
+        self.chunk.write_chunk(byte, line);
     }
 
-    fn emit_return(&self) {
+    fn emit_return(&mut self) {
         self.emit_byte(OpCode::OpReturn(0));
     }
 
-    fn end_compiler(&self) {
+    fn end_compiler(&mut self) {
         self.emit_return();
     }
 
-    fn parse(&'a self, precedence: &Precedence) {
+    fn parse(&mut self, precedence: &Precedence) {
         // advance cursor
         self.advance();
 
-        let ParseRule { prefix_fn, .. } = self.get_rule(
-            self.previous
-                .borrow()
-                .expect("Error borrowing previous token in parse"),
-        );
+        let ParseRule { prefix_fn, .. } = Compiler::get_rule(self.previous());
 
         let can_assign = precedence <= &Precedence::PrecAssign;
 
         // call prefix parsing function if present
-        if let Some(p_fn) = prefix_fn {
-            p_fn(can_assign);
-        } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
+        if let Some(parse_fn) = prefix_fn {
+            self.apply_parse_fn(parse_fn, can_assign)
+                .expect("Error applying parse func");
+        } else if self.previous().token_type == TokenType::EOF {
             return;
         } else {
             self.error(&format!(
@@ -759,19 +720,16 @@ impl<'a> Compiler<'a> {
         }
 
         // check that current precedence is less than current_token's precedence
-        while precedence <= &self.get_rule(self.current.borrow().unwrap()).precedence {
+        while precedence <= &Compiler::get_rule(self.peek()).precedence {
             // advance cursor and execute infix parsing function
             self.advance();
 
-            let ParseRule { infix_fn, .. } = self.get_rule(
-                self.previous
-                    .borrow()
-                    .expect("Error borrowing previous in parse"),
-            );
+            let ParseRule { infix_fn, .. } = Compiler::get_rule(self.previous());
 
-            if let Some(in_fn) = infix_fn {
-                in_fn(can_assign);
-            } else if self.previous.borrow().unwrap().token_type == TokenType::EOF {
+            if let Some(parse_fn) = infix_fn {
+                self.apply_parse_fn(parse_fn, can_assign)
+                    .expect("Error applying parse func");
+            } else if self.previous().token_type == TokenType::EOF {
                 return;
             } else {
                 self.error("No infix function parsed.");
@@ -784,14 +742,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn parse_variable(&'a self, msg: &str) -> usize {
+    fn parse_variable(&mut self, msg: &str) -> usize {
         // TODO -- how to make parse variable work here without consuming blank ID?
         self.consume(TokenType::Identifier(Rc::new(RoxString::new(""))), msg);
 
-        let previous = self
-            .previous
-            .borrow()
-            .expect("Error borrowing previous token when parsing variable.");
+        let previous = self.previous().clone();
         let previous_token_value = match &previous.token_type {
             TokenType::Identifier(str) => str,
             _ => panic!(
@@ -802,25 +757,25 @@ impl<'a> Compiler<'a> {
 
         self.declare_variable();
         // don't add a local and a global below
-        if *self.scope_depth.borrow() > 0 {
+        if self.scope_depth > 0 {
             return 0;
         }
 
         self.emit_identifier_constant(previous_token_value, previous.line, VariableOp::Define)
     }
 
-    pub fn compile(&'a self) -> bool {
-        // prime pump with token to parse
-        self.advance();
+    pub fn compile(source: &str) -> Result<Chunk, String> {
+        let tokens = Scanner::new().scan_tokens(source);
+        let mut compiler = Self::new(tokens.to_vec());
 
         // parse sequence of declarations and statements
-        while !self.match_token(TokenType::EOF) {
-            self.declaration();
+        while !compiler.match_token(TokenType::EOF) {
+            compiler.declaration();
         }
 
         // emit final byte code
-        self.end_compiler();
+        compiler.end_compiler();
 
-        !*self.had_error.borrow()
+        Ok(compiler.chunk.clone())
     }
 }

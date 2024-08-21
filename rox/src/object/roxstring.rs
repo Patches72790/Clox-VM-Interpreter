@@ -1,8 +1,9 @@
 use std::convert::From;
+use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, Eq, Hash)]
+#[derive(Clone, Debug, Eq)]
 pub struct RoxString(String);
 
 impl RoxString {
@@ -19,11 +20,18 @@ impl RoxString {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        &(*self.0.as_bytes())
+        self.0.as_bytes()
     }
 
     pub fn raw_parts(&mut self) -> (*const u8, usize, usize) {
         (self.0.as_ptr(), self.0.len(), self.0.capacity())
+    }
+}
+
+impl Hash for RoxString {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.0.len());
+        state.write(self.0.as_bytes())
     }
 }
 

@@ -168,6 +168,14 @@ impl Table {
     }
 
     fn load_factor(&self) -> f32 {
+        /*
+                        if let Some(next) = boxed_node.next {
+                            self.ptr = Some(next);
+                        } else {
+                            self.ptr = None;
+                        }
+        */
+
         self.capacity as f32 * LOAD_FACTOR
     }
 

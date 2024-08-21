@@ -4,6 +4,7 @@ use crate::DEBUG_MODE;
 use std::io::Write;
 use std::{fs, io};
 
+#[derive(Debug)]
 pub struct Config {
     vm: VM,
     filename: Option<String>,
@@ -59,7 +60,7 @@ impl Config {
         }
     }
 
-    pub fn run_file_with_filename(&self, pathname: &str) -> Result<(), ConfigError> {
+    pub fn run_file_with_filename(&mut self, pathname: &str) -> Result<(), ConfigError> {
         // read the file contents into string
         let file_contents = match fs::read_to_string(pathname) {
             Ok(content) => content,
@@ -72,7 +73,7 @@ impl Config {
         };
 
         if DEBUG_MODE {
-            println!("Read contents of file:\n{file_contents}");
+            println!("Read contents of file:\n\n{file_contents}");
         }
 
         // interpret the file
@@ -80,7 +81,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn run_file(&self) -> Result<(), ConfigError> {
+    pub fn run_file(&mut self) -> Result<(), ConfigError> {
         // grab filename path if it exists
         let file = match &self.filename {
             Some(val) => val,

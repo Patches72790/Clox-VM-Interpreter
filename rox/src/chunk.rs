@@ -1,8 +1,6 @@
 use crate::opcode::VariableOp;
-use crate::{ObjectList, ObjectType, OpCode, RcMut, RoxObject, RoxString, Table, DEBUG_MODE};
+use crate::{ObjectType, OpCode, RoxObject, RoxString, DEBUG_MODE};
 use crate::{Value, Values};
-use std::cell::RefCell;
-use std::rc::Rc;
 use string_interner::StringInterner;
 
 thread_local! {
@@ -13,14 +11,18 @@ thread_local! {
 ///of code with a size of count and capacity.
 ///The code vector corresponds to the list of instructions
 ///of type OpCode.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Chunk {
     count: usize,
     pub code: Vec<OpCode>,
     pub constants: Values,
     pub lines: Vec<String>,
-    objects: Rc<RefCell<ObjectList>>,
-    global_indices: RcMut<Table<RoxString, usize>>,
+}
+
+impl Default for Chunk {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Chunk {
@@ -28,26 +30,19 @@ impl Chunk {
     ///Creates and returns a new chunk with size/capacity of 0.
     ///The code vector is initially set to Option<None>.
     ///
-    pub fn new(
-        objects: Rc<RefCell<ObjectList>>,
-        global_indices: RcMut<Table<RoxString, usize>>,
-    ) -> Chunk {
+    pub fn new() -> Chunk {
         Chunk {
             count: 0,
             code: vec![],
             constants: Values::new(),
             lines: vec![],
-            objects,
-            global_indices,
         }
     }
 
     pub fn reset(&mut self) {
         self.count = 0;
         self.code = vec![];
-        //self.constants = Values::new();
         self.lines = vec![];
-        //self.global_indices.borrow_mut().reset();
     }
 
     pub fn count(&self) -> usize {
@@ -141,12 +136,7 @@ impl Chunk {
     /// Then the method writes to the chunk with the provided index.
     ///
     pub fn add_constant(&mut self, value: Value, line: usize) {
-        let (index, value_ref) = self.constants.write_value(value, None);
-
-        // add rox object to list for tracking allocated objects
-        if let Value::Object(obj) = value_ref {
-            self.objects.borrow_mut().add_object(obj);
-        }
+        let (index, value_ref) = self.constants.write_value(value);
 
         self.write_chunk(OpCode::OpConstant(index), line);
     }
@@ -157,16 +147,13 @@ impl Chunk {
         line: usize,
         variable_op: VariableOp,
     ) -> usize {
-        let (index, value_ref) = self.constants.write_value(
-            Value::Object(RoxObject::new(ObjectType::ObjString(string_value.clone()))),
-            Some(&mut self.global_indices.borrow_mut()),
-        );
+        let (index, value_ref) =
+            self.constants
+                .write_value(Value::Object(RoxObject::new(ObjectType::ObjString(
+                    string_value.clone(),
+                ))));
         if DEBUG_MODE {
             println!("Added id {} at index {} to values", value_ref, index);
-        }
-
-        if let Value::Object(obj) = value_ref {
-            self.objects.borrow_mut().add_object(obj);
         }
 
         match variable_op {
@@ -206,14 +193,16 @@ impl Chunk {
             OpCode::OpPop => Chunk::simple_instruction("OP_POP"),
             OpCode::OpDefineGlobal(_) => Chunk::simple_instruction("OP_DEFINE_GLOBAL"),
             OpCode::OpGetGlobal(_) => Chunk::simple_instruction("OP_GET_GLOBAL"),
-            OpCode::OpSetGlobal(_) => Chunk::simple_instruction("OP_SET_GLOBAL"),
+            OpCode::OpSetGlobal(idx) => {
+                Chunk::simple_instruction(format!("OP_SET_GLOBAL {}", idx).as_str())
+            }
             OpCode::OpGetLocal(_) => Chunk::simple_instruction("OP_GET_LOCAL"),
             OpCode::OpSetLocal(_) => Chunk::simple_instruction("OP_SET_LOCAL"),
-            OpCode::OpJumpIfFalse(offset) => {
-                Chunk::simple_instruction(format!("OP_JUMP_IF_FALSE {}", offset.unwrap()).as_str())
-            }
+            OpCode::OpJumpIfFalse(offset) => Chunk::simple_instruction(
+                format!("OP_JUMP_IF_FALSE {}", offset.unwrap_or(0)).as_str(),
+            ),
             OpCode::OpJump(offset) => {
-                Chunk::simple_instruction(format!("OP_JUMP {}", offset.unwrap()).as_str())
+                Chunk::simple_instruction(format!("OP_JUMP {}", offset.unwrap_or(0)).as_str())
             }
             OpCode::OpLoop(offset) => {
                 Chunk::simple_instruction(format!("OP_LOOP {}", offset).as_str())

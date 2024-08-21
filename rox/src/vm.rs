@@ -1,55 +1,34 @@
-use crate::Chunk;
-use crate::Compiler;
-use crate::ObjectList;
 use crate::ObjectType;
 use crate::OpCode;
-use crate::RcMut;
 use crate::RoxMap;
 use crate::RoxObject;
 use crate::RoxString;
-use crate::Scanner;
 use crate::Stack;
 use crate::Table;
 use crate::Value;
 use crate::DEBUG_MODE;
+use crate::{Chunk, Compiler};
 use crate::{InterpretError, InterpretOk, InterpretResult};
-use std::cell::RefCell;
-use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct VM {
-    pub chunk: RcMut<Chunk>,
-    ip: RefCell<usize>,
-    stack: RefCell<Stack>,
-    scanner: Scanner,
-    objects: Rc<RefCell<ObjectList>>,
-    globals: RcMut<Table<RoxString, Value>>,
-    global_indices: RcMut<Table<RoxString, usize>>,
+    ip: usize,
+    stack: Stack<Value>,
+    globals: Table<RoxString, Value>,
 }
 
 impl VM {
     pub fn new() -> VM {
-        let objects = Rc::new(RefCell::new(ObjectList::new()));
-        let global_indices = Rc::new(RefCell::new(Table::new()));
-        let chunk = Rc::new(RefCell::new(Chunk::new(
-            Rc::clone(&objects),
-            Rc::clone(&global_indices),
-        )));
         VM {
-            chunk: Rc::clone(&chunk),
-            ip: RefCell::new(0),
-            stack: RefCell::new(Stack::new()),
-            scanner: Scanner::new(),
-            objects: Rc::clone(&objects),
-            globals: Rc::new(RefCell::new(Table::new())),
-            global_indices: Rc::clone(&global_indices),
+            ip: 0,
+            stack: Stack::new(),
+            globals: Table::new(),
         }
     }
 
     pub fn reset(&mut self) {
-        *(self.ip.borrow_mut()) = 0;
-        self.chunk.borrow_mut().reset();
-        self.objects.borrow_mut().reset();
-        self.stack.borrow_mut().reset_stack();
+        self.ip = 0;
+        self.stack.reset();
     }
 
     fn read_byte(code: &[OpCode], ip: usize) -> Option<OpCode> {
@@ -80,19 +59,19 @@ impl VM {
         }
     }
 
-    fn incr_ip(&self) -> usize {
-        let current_ip = *self.ip.borrow();
-        *self.ip.borrow_mut() += 1;
+    fn incr_ip(&mut self) -> usize {
+        let current_ip = self.ip;
+        self.ip += 1;
 
         current_ip
     }
 
-    fn run(&self) -> InterpretResult {
+    fn run(&mut self, chunk: &Chunk) -> InterpretResult {
         loop {
             let current_ip = self.incr_ip();
 
             // read next instruction
-            let instruction = match VM::read_byte(&self.chunk.borrow().code, current_ip) {
+            let instruction = match VM::read_byte(&chunk.code, current_ip) {
                 Some(instr) => instr,
                 None => {
                     if DEBUG_MODE {
@@ -103,8 +82,9 @@ impl VM {
             };
 
             if DEBUG_MODE {
-                Chunk::disassemble_instruction(&instruction, current_ip, &self.chunk.borrow());
-                println!(" {}", *self.stack.borrow());
+                println!("Executing instruction: ");
+                Chunk::disassemble_instruction(&instruction, current_ip, chunk);
+                println!("\n\t{}", self.stack);
             }
 
             match instruction {
@@ -118,52 +98,48 @@ impl VM {
                     //}
                 }
                 OpCode::OpPop => {
-                    self.stack.borrow_mut().pop()?;
+                    self.stack.pop();
                 }
                 OpCode::OpConstant(constants_index) => {
-                    let constant =
-                        VM::read_constant(&self.chunk.borrow().constants.values, constants_index)
-                            .unwrap_or_else(|| {
-                                panic!(
-                                    "Constant at IP {} did not return expected value!",
-                                    current_ip
-                                )
-                            });
-                    self.stack.borrow_mut().push(constant);
+                    let constant = VM::read_constant(&chunk.constants.values, constants_index)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Constant at IP {} did not return expected value!",
+                                current_ip
+                            )
+                        });
+                    self.stack.push(constant);
                 }
                 OpCode::OpDefineGlobal(str_id_index) => {
-                    let string_id =
-                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+                    let string_id = VM::read_string(&chunk.constants.values, str_id_index);
 
                     if DEBUG_MODE {
                         println!("Added id {string_id} to globals table");
                     }
 
-                    let global_rhs = self.stack.borrow().peek(0)?;
-                    self.globals.borrow_mut().set(&string_id, &global_rhs);
-                    self.stack.borrow_mut().pop()?;
+                    let global_rhs = self.stack.peek().unwrap_or_else(|| {
+                        panic!(
+                            "Error getting stack value in DefineGlobal({})",
+                            str_id_index
+                        )
+                    });
+                    self.globals.set(&string_id, global_rhs);
+                    self.stack.pop();
                 }
                 OpCode::OpSetGlobal(str_id_index) => {
-                    let string_id =
-                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+                    let string_id = VM::read_string(&chunk.constants.values, str_id_index);
 
-                    let rhs = self.stack.borrow().peek(0)?;
-                    if !self.globals.borrow_mut().get_and_set(&string_id, &rhs) {
-                        return Err(InterpretError::RuntimeError(format!(
-                            "Undefined variable {}",
-                            string_id
-                        )));
-                    }
+                    let rhs = self.stack.peek().expect("Error peeking stack in SetGlobal");
+                    self.globals.set(&string_id, rhs);
                     if DEBUG_MODE {
                         println!("Set global id {string_id} to {rhs}.");
                     }
                 }
                 OpCode::OpGetGlobal(str_id_index) => {
-                    let string_id =
-                        VM::read_string(&self.chunk.borrow().constants.values, str_id_index);
+                    let string_id = VM::read_string(&chunk.constants.values, str_id_index);
 
-                    if let Some(value) = self.globals.borrow_mut().get(&string_id) {
-                        self.stack.borrow_mut().push(value.clone());
+                    if let Some(value) = self.globals.get(&string_id) {
+                        self.stack.push(value.clone());
                     } else {
                         return Err(InterpretError::RuntimeError(format!(
                             "Undefined variable '{}'.",
@@ -176,26 +152,24 @@ impl VM {
                     }
                 }
                 OpCode::OpGetLocal(index) => {
-                    if let Err(msg) = self.stack.borrow_mut().get_and_push_local(index) {
-                        return Err(InterpretError::RuntimeError(msg.to_string()));
-                    }
+                    self.stack
+                        .get_and_push_local(index)
+                        .expect("Error getting local at index");
                 }
                 OpCode::OpSetLocal(index) => {
-                    if let Err(msg) = self.stack.borrow_mut().set_local(index) {
-                        return Err(InterpretError::RuntimeError(msg.to_string()));
-                    }
-                }
-                OpCode::OpTrue => self.stack.borrow_mut().push(Value::Boolean(true)),
-                OpCode::OpFalse => self.stack.borrow_mut().push(Value::Boolean(false)),
-                OpCode::OpNil => self.stack.borrow_mut().push(Value::Nil),
-                OpCode::OpNot => {
-                    let val = self.stack.borrow_mut().pop()?;
                     self.stack
-                        .borrow_mut()
-                        .push(Value::Boolean(self.is_falsey(val)));
+                        .set_local(index)
+                        .expect("Error setting local at index");
+                }
+                OpCode::OpTrue => self.stack.push(Value::Boolean(true)),
+                OpCode::OpFalse => self.stack.push(Value::Boolean(false)),
+                OpCode::OpNil => self.stack.push(Value::Nil),
+                OpCode::OpNot => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(Value::Boolean(self.is_falsey(val)));
                 }
                 OpCode::OpNegate => {
-                    let val = self.stack.borrow_mut().pop()?;
+                    let val = self.stack.pop().unwrap();
 
                     // check for non number types
                     let val = match val {
@@ -206,71 +180,79 @@ impl VM {
                             ))
                         }
                     };
-                    self.stack.borrow_mut().push(-val);
+                    self.stack.push(-val);
                 }
                 OpCode::OpAdd => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
 
                     // check for string concatenation
                     if let (true, Some(str_1), Some(str_2)) = self.check_for_strings(&a, &b) {
                         self.concatenate(str_1, str_2);
                     } else {
                         // otherwise only numbers are addable
-                        let (a, b) = self.check_for_non_number_types(a, b)?;
-                        self.stack.borrow_mut().push(a + b); // push result
+                        let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                        self.stack.push(a + b); // push result
                     }
                 }
                 OpCode::OpSubtract => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(a - b); // push result
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
+                    let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                    self.stack.push(a - b); // push result
                 }
                 OpCode::OpMultiply => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(a * b); // push result
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
+                    let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                    self.stack.push(a * b); // push result
                 }
                 OpCode::OpDivide => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(a / b); // push result
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
+                    let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                    self.stack.push(a / b); // push result
                 }
                 OpCode::OpEqual => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs
-                    let a = self.stack.borrow_mut().pop()?; // lhs
-                    self.stack.borrow_mut().push(Value::Boolean(a == b));
+                    let b = self.stack.pop().unwrap(); // rhs
+                    let a = self.stack.pop().unwrap(); // lhs
+                    self.stack.push(Value::Boolean(a == b));
                 }
                 OpCode::OpGreater => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(Value::Boolean(a > b)); // push result
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
+                    let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                    self.stack.push(Value::Boolean(a > b)); // push result
                 }
                 OpCode::OpLess => {
-                    let b = self.stack.borrow_mut().pop()?; // rhs operand
-                    let a = self.stack.borrow_mut().pop()?; // lhs operand
-                    let (a, b) = self.check_for_non_number_types(a, b)?;
-                    self.stack.borrow_mut().push(Value::Boolean(a < b)); // push result
+                    let b = self.stack.pop().unwrap(); // rhs operand
+                    let a = self.stack.pop().unwrap(); // lhs operand
+                    let (a, b) = self.check_for_non_number_types(chunk, a, b)?;
+                    self.stack.push(Value::Boolean(a < b)); // push result
                 }
                 OpCode::OpPrint => {
-                    println!("{}", self.stack.borrow_mut().pop()?);
+                    println!("{}", self.stack.pop().unwrap());
                 }
                 OpCode::OpJumpIfFalse(jump) => {
-                    let jump_offset = jump.unwrap();
-                    if self.is_falsey(self.stack.borrow().peek(0)?) {
-                        *self.ip.borrow_mut() += jump_offset;
+                    let jump_offset =
+                        jump.unwrap_or_else(|| panic!("Unknown jump offset for JumpIfFalse"));
+                    if self.is_falsey(
+                        self.stack
+                            .peek()
+                            .unwrap_or_else(|| {
+                                panic!("Error peeking stack in JumpIfFalse({:?})", jump)
+                            })
+                            .clone(),
+                    ) {
+                        self.ip += jump_offset;
                     }
                 }
                 OpCode::OpJump(jump) => {
                     let jump_offset = jump.unwrap();
-                    *self.ip.borrow_mut() += jump_offset;
+                    self.ip += jump_offset;
                 }
                 OpCode::OpLoop(jump) => {
-                    *self.ip.borrow_mut() -= jump;
+                    self.ip -= jump;
                 }
             }
         }
@@ -280,12 +262,10 @@ impl VM {
         matches!(value, Value::Boolean(false) | Value::Nil)
     }
 
-    fn concatenate<'a>(&self, lhs: &'a RoxString, rhs: &'a RoxString) {
+    fn concatenate<'a>(&mut self, lhs: &'a RoxString, rhs: &'a RoxString) {
         let new_string = lhs.clone() + rhs.clone();
-        let mut new_string_obj = RoxObject::new(ObjectType::ObjString(new_string));
-        // new string is allocated so add it to objects list
-        self.objects.borrow_mut().add_object(&mut new_string_obj);
-        self.stack.borrow_mut().push(Value::Object(new_string_obj));
+        let new_string_obj = RoxObject::new(ObjectType::ObjString(new_string));
+        self.stack.push(Value::Object(new_string_obj));
     }
 
     fn check_for_strings<'a>(
@@ -308,26 +288,27 @@ impl VM {
 
     fn check_for_non_number_types(
         &self,
+        chunk: &Chunk,
         a: Value,
         b: Value,
     ) -> Result<(Value, Value), InterpretError> {
         let a = match a {
             Value::Number(num) => Value::Number(num),
             _ => {
-                let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
+                let line = chunk.get_line(self.ip - 1);
                 return Err(InterpretError::RuntimeError(format!(
-                    "[line {}]: Cannot relate two non-number types",
-                    line
+                    "[line {}]: Cannot relate two non-number types: a=({}) b=({})",
+                    line, a, b
                 )));
             }
         };
         let b = match b {
             Value::Number(num) => Value::Number(num),
             _ => {
-                let line = self.chunk.borrow().get_line(*self.ip.borrow() - 1);
+                let line = chunk.get_line(self.ip - 1);
                 return Err(InterpretError::RuntimeError(format!(
-                    "[line {}]: Cannot relate two non-number types",
-                    line
+                    "[line {}]: Cannot relate two non-number types {} {}",
+                    line, a, b
                 )));
             }
         };
@@ -335,27 +316,23 @@ impl VM {
         Ok((a, b))
     }
 
-    pub fn interpret(&self, source: &str) -> InterpretResult {
-        // read and scan tokens
-        let tokens = self.scanner.scan_tokens(source);
-
-        // make new compiler
-        let chunk = Rc::clone(&self.chunk);
-        let peekable_tokens = RefCell::new(tokens.iter().peekable());
-        let compiler = Compiler::new(chunk, peekable_tokens);
-
-        // parse and compile tokens into opcodes
-        if !compiler.compile() {
-            return Err(InterpretError::CompileError(
-                "Compiler error in VM interpreter.".to_string(),
-            ));
-        }
+    pub fn interpret(&mut self, source: &str) -> InterpretResult {
+        let chunk = match Compiler::compile(source) {
+            Ok(chunk) => chunk,
+            Err(msg) => {
+                return Err(InterpretError::CompileError(format!(
+                    "Compiler error in VM interpreter: {}",
+                    msg
+                )))
+            }
+        };
 
         if DEBUG_MODE {
-            self.chunk.borrow().disassemble_chunk("OpCode Debug");
+            chunk.disassemble_chunk("OpCode Debug");
         }
+
         // run vm with chunk filled with compiled opcodes
-        self.run()
+        self.run(&chunk)
     }
 }
 
@@ -372,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_negate_op() {
-        let vm = VM::new();
+        let mut vm = VM::new();
         let result = vm.interpret("-45;").unwrap();
 
         assert!(result == error::InterpretOk);
@@ -380,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_add_binary_op() {
-        let vm = VM::new();
+        let mut vm = VM::new();
 
         if let Err(msg) = vm.interpret("45 + 15;") {
             panic!("{}", msg)
@@ -390,7 +367,7 @@ mod tests {
     /// Test 1 + 2 * 3 == 7
     #[test]
     fn test_mult_op_1() {
-        let vm = VM::new();
+        let mut vm = VM::new();
 
         if let Err(msg) = vm.interpret("1 + 2 * 3;") {
             panic!("{}", msg)
@@ -400,7 +377,7 @@ mod tests {
     /// Test 3 - 2 - 1 == 0
     #[test]
     fn test_sub() {
-        let vm = VM::new();
+        let mut vm = VM::new();
 
         if let Err(msg) = vm.interpret("3 - 2 - 1;") {
             panic!("{}", msg)
@@ -409,8 +386,42 @@ mod tests {
 
     #[test]
     fn test_local_vars() {
-        let vm = VM::new();
+        let mut vm = VM::new();
         if let Err(msg) = vm.interpret("var a = 123; { var b = 456; print a + b; } print a;") {
+            panic!("{}", msg)
+        }
+    }
+
+    #[test]
+    fn test_while_loop_simple() {
+        let mut vm = VM::new();
+        if let Err(msg) = vm.interpret("var a = 123; while (a > 125) {  a = a + 1; } print a;") {
+            panic!("{}", msg)
+        }
+    }
+
+    #[test]
+    fn test_for_loop_simple() {
+        let mut vm = VM::new();
+        if let Err(msg) = vm.interpret("for (var a = 0; a > 125; a = a+1) { print a;}") {
+            panic!("{}", msg)
+        }
+    }
+
+    #[test]
+    fn test_for_loop_global() {
+        let mut vm = VM::new();
+        if let Err(msg) = vm.interpret("var a = 3; for (; a > 0;) { print a; a = a - 1;}") {
+            panic!("{}", msg)
+        }
+    }
+
+    #[test]
+    fn test_for_loop_decr() {
+        let mut vm = VM::new();
+        // TODO =>  Error related to decremenet when for-loop var set inside for declaration
+        // statement
+        if let Err(msg) = vm.interpret("for (var a = 3; a > 2; a = a - 1) { print a; }") {
             panic!("{}", msg)
         }
     }

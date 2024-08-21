@@ -1,17 +1,18 @@
-use crate::{ObjectType, RoxMap, RoxNumber, RoxObject, RoxString, Table, DEBUG_MODE};
-use std::ops;
+use crate::{ObjectType, RoxNumber, RoxObject};
+use std::{fmt::Write, ops};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Values {
     pub count: usize,
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Default)]
 pub enum Value {
+    #[default]
+    Nil,
     Number(RoxNumber),
     Boolean(bool),
-    Nil,
     Object(RoxObject),
     Error,
 }
@@ -28,45 +29,7 @@ impl Values {
      * Writes a value to the values array and returns the index at which it
      * was added for use in the chunk instruction block.
      */
-    pub fn write_value(
-        &mut self,
-        value: Value,
-        global_indices: Option<&mut Table<RoxString, usize>>,
-    ) -> (usize, &mut Value) {
-        // keep a globals map so as not to duplicate globals in values array
-        if let Some(global_indices) = global_indices {
-            if let Value::Object(obj) = &value {
-                match &obj.object_type {
-                    ObjectType::ObjString(rox_string) => match global_indices.get(rox_string) {
-                        Some(idx) => {
-                            if DEBUG_MODE {
-                                println!("Global indices: {:?}", global_indices);
-                                println!("Values array: {:?}", self.values);
-                            }
-                            let found_global = self.values.get_mut(*idx).unwrap_or_else(|| {
-                                panic!("Error finding global '{}' at index {}", rox_string, idx,)
-                            });
-                            return (*idx, found_global);
-                        }
-                        None => {
-                            self.values.push(value.clone());
-                            self.count += 1;
-                            let index = self.count - 1;
-                            if DEBUG_MODE {
-                                println!("Setting global {} to index {}", rox_string, index);
-                                println!("Values array: {:?}", self.values);
-                            }
-
-                            let value_ref = self.values.get_mut(index).unwrap();
-
-                            global_indices.set(rox_string, &index);
-                            return (index, value_ref);
-                        }
-                    },
-                    _ => (),
-                }
-            };
-        }
+    pub fn write_value(&mut self, value: Value) -> (usize, &mut Value) {
         self.values.push(value);
         self.count += 1;
         let index = self.count - 1;
@@ -195,10 +158,13 @@ impl ops::Div<Value> for Value {
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Number(num) => write!(f, "{}", num.to_string()),
-            Value::Boolean(b) => write!(f, "{}", b.to_string()),
+            Value::Number(num) => write!(f, "{}", num),
+            Value::Boolean(b) => write!(f, "{}", b),
             Value::Nil => write!(f, "nil"),
-            Value::Object(obj) => write!(f, "Object<{}>", obj),
+            Value::Object(obj) => match &obj.object_type {
+                ObjectType::ObjString(s) => write!(f, "\"{}\"", s),
+                //_ => unimplemented!("Unimplemented object type display!"),
+            },
             Value::Error => write!(f, "Value<Error>"),
         }
     }
