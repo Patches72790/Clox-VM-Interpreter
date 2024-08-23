@@ -1,8 +1,10 @@
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
+use crate::repl::ScreenClear;
 use crate::vm::VM;
 use crate::InterpretError;
+use crate::Repl;
 use crate::DEBUG_MODE;
 use std::collections::VecDeque;
 use std::io::stdout;
@@ -114,6 +116,66 @@ impl Config {
     }
 
     pub fn repl(&mut self) {
+        let mut repl = Repl::new();
+        repl.screen_update(crate::repl::ScreenClear::All).unwrap();
+
+        loop {
+            repl.flush().unwrap();
+            repl.write("rox> ").unwrap();
+            repl.flush().unwrap();
+
+            for c in io::stdin().keys() {
+                match c.unwrap_or_else(|e| panic!("Error reading key {e}")) {
+                    termion::event::Key::Ctrl('l') => {
+                        repl.screen_update(crate::repl::ScreenClear::All).unwrap()
+                    }
+                    termion::event::Key::Ctrl('q' | 'd') => return,
+                    termion::event::Key::Char('\n') => {
+                        repl.screen_update(crate::repl::ScreenClear::NewLine)
+                            .unwrap();
+                        repl.write("\n").unwrap();
+                        break;
+                    }
+
+                    termion::event::Key::Char(c) => repl
+                        .add_char(c)
+                        .unwrap_or_else(|e| panic!("Error adding new char: {e}")),
+                    termion::event::Key::Backspace => {
+                        let current = repl
+                            .remove_char()
+                            .unwrap_or_else(|e| panic!("Error removing char: {e}"));
+                        repl.screen_update(ScreenClear::AfterCursor)
+                            .expect("Error updating screen");
+
+                        repl.write("rox> ").unwrap();
+                        repl.write(current.as_str()).unwrap();
+                    }
+                    termion::event::Key::Up => todo!(),
+                    termion::event::Key::Down => todo!(),
+                    _ => todo!(),
+                }
+
+                repl.flush().unwrap();
+            }
+
+            let input = repl
+                .current()
+                .unwrap_or_else(|| panic!("Error getting input at current history"));
+
+            if let Err(val) = self.vm.interpret(input) {
+                panic!("Error: {val}");
+                //                screen_idx += 1;
+                //                writeln!(stdout, "{}", termion::cursor::Goto(1, screen_idx)).unwrap();
+                //                writeln!(stdout, "{}", val).unwrap();
+                //                screen_idx += 1;
+                //                writeln!(stdout, "{}", termion::cursor::Goto(1, screen_idx)).unwrap();
+            };
+
+            self.vm.reset();
+        }
+    }
+    /*
+    pub fn repl(&mut self) {
         let mut stdout = stdout().into_raw_mode().unwrap();
         let mut history = VecDeque::new();
         let mut history_idx = 0usize;
@@ -147,23 +209,6 @@ impl Config {
                         write!(stdout, "rox> ").unwrap();
                     }
                     termion::event::Key::Ctrl('q' | 'd') => return,
-                    /*
-                    termion::event::Key::Up => {
-                        history_idx += 1 % history.len();
-                        let n = history.get(history_idx);
-                        if let Some(s) = n {
-                            write!(stdout, "{}", s).unwrap();
-                        }
-                        //write!(stdout, "{}", history.get(history_idx).unwrap_unchecked()).unwrap();
-                    }
-                    termion::event::Key::Down => {
-                        history_idx = history_idx.saturating_sub(1);
-                        let n = history.get(history_idx);
-                        if let Some(s) = n {
-                            write!(stdout, "{}", s).unwrap();
-                        }
-                    }
-                    */
                     termion::event::Key::Char('\n') => {
                         screen_idx += 1;
                         write!(
@@ -220,4 +265,5 @@ impl Config {
             self.vm.reset();
         }
     }
+    */
 }
