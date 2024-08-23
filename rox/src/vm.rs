@@ -1,3 +1,7 @@
+use std::io::{stdout, Write};
+
+use termion::raw::IntoRawMode;
+
 use crate::ObjectType;
 use crate::OpCode;
 use crate::RoxMap;
@@ -29,6 +33,7 @@ impl VM {
     pub fn reset(&mut self) {
         self.ip = 0;
         self.stack.reset();
+        self.globals.reset();
     }
 
     fn read_byte(code: &[OpCode], ip: usize) -> Option<OpCode> {
@@ -231,7 +236,12 @@ impl VM {
                     self.stack.push(Value::Boolean(a < b)); // push result
                 }
                 OpCode::OpPrint => {
-                    println!("{}", self.stack.pop().unwrap());
+                    writeln!(
+                        stdout().into_raw_mode().unwrap(),
+                        "{}",
+                        self.stack.pop().unwrap()
+                    )
+                    .unwrap();
                 }
                 OpCode::OpJumpIfFalse(jump) => {
                     let jump_offset =
@@ -421,7 +431,9 @@ mod tests {
         let mut vm = VM::new();
         // TODO =>  Error related to decremenet when for-loop var set inside for declaration
         // statement
-        if let Err(msg) = vm.interpret("for (var a = 3; a > 2; a = a - 1) { print a; }") {
+        if let Err(msg) = vm.interpret(
+            "var b = 0; for (var a = 3; a > 0; a = a - 1) { b = b + 1; print b; print a + b; }",
+        ) {
             panic!("{}", msg)
         }
     }

@@ -1,6 +1,11 @@
+use termion::input::TermRead;
+use termion::raw::IntoRawMode;
+
 use crate::vm::VM;
 use crate::InterpretError;
 use crate::DEBUG_MODE;
+use std::collections::VecDeque;
+use std::io::stdout;
 use std::io::Write;
 use std::{fs, io};
 
@@ -109,28 +114,110 @@ impl Config {
     }
 
     pub fn repl(&mut self) {
-        let mut buffer = String::new();
+        let mut stdout = stdout().into_raw_mode().unwrap();
+        let mut history = VecDeque::new();
+        let mut history_idx = 0usize;
+        let mut screen_idx = 1;
 
+        write!(
+            stdout,
+            r#"{}{}"#,
+            termion::cursor::Goto(1, 1),
+            termion::clear::All
+        )
+        .unwrap();
         loop {
-            print!("rox> ");
-            io::stdout().flush().unwrap();
+            stdout.flush().unwrap();
+            write!(stdout, "rox> ").unwrap();
+            stdout.flush().unwrap();
 
-            let result = match io::stdin().read_line(&mut buffer) {
-                Ok(size) => size,
-                Err(_) => continue,
-            };
+            history.push_front(String::new());
 
-            if DEBUG_MODE {
-                print!("Repl read line of length {} -- {}", result, buffer);
+            for c in io::stdin().keys() {
+                match c.unwrap_or_else(|e| panic!("Error reading key {e}")) {
+                    termion::event::Key::Ctrl('l') => {
+                        screen_idx = 1;
+                        write!(
+                            stdout,
+                            r#"{}{}"#,
+                            termion::cursor::Goto(1, screen_idx),
+                            termion::clear::AfterCursor
+                        )
+                        .unwrap();
+                        write!(stdout, "rox> ").unwrap();
+                    }
+                    termion::event::Key::Ctrl('q' | 'd') => return,
+                    /*
+                    termion::event::Key::Up => {
+                        history_idx += 1 % history.len();
+                        let n = history.get(history_idx);
+                        if let Some(s) = n {
+                            write!(stdout, "{}", s).unwrap();
+                        }
+                        //write!(stdout, "{}", history.get(history_idx).unwrap_unchecked()).unwrap();
+                    }
+                    termion::event::Key::Down => {
+                        history_idx = history_idx.saturating_sub(1);
+                        let n = history.get(history_idx);
+                        if let Some(s) = n {
+                            write!(stdout, "{}", s).unwrap();
+                        }
+                    }
+                    */
+                    termion::event::Key::Char('\n') => {
+                        screen_idx += 1;
+                        write!(
+                            stdout,
+                            r#"{}{}"#,
+                            termion::cursor::Goto(1, screen_idx),
+                            termion::clear::AfterCursor
+                        )
+                        .unwrap();
+                        writeln!(stdout).unwrap();
+                        break;
+                    }
+
+                    termion::event::Key::Backspace => {
+                        if let Some(current) = history.get_mut(history_idx) {
+                            current.pop();
+
+                            write!(
+                                stdout,
+                                r#"{}{}"#,
+                                termion::cursor::Goto(1, screen_idx),
+                                termion::clear::AfterCursor,
+                            )
+                            .unwrap();
+
+                            write!(stdout, "rox> {}", current).unwrap();
+                        }
+                    }
+                    termion::event::Key::Char(c) => {
+                        if let Some(current) = history.get_mut(history_idx) {
+                            current.push(c);
+
+                            write!(stdout, "{}", c).unwrap();
+                        }
+                    }
+                    _ => (),
+                }
+
+                stdout.flush().unwrap();
             }
 
-            if let Err(val) = self.vm.interpret(&buffer) {
-                println!("\n<<<Error in Rox REPL>>>\n\nMessage: {}", val);
+            let input = history.get(history_idx).unwrap_or_else(|| {
+                panic!("Error getting input at current history index {history_idx}")
+            });
+
+            if let Err(val) = self.vm.interpret(input) {
+                screen_idx += 1;
+                writeln!(stdout, "{}", termion::cursor::Goto(1, screen_idx)).unwrap();
+                writeln!(stdout, "{}", val).unwrap();
+                screen_idx += 1;
+                writeln!(stdout, "{}", termion::cursor::Goto(1, screen_idx)).unwrap();
             };
 
             self.vm.reset();
-
-            buffer.clear();
         }
     }
 }

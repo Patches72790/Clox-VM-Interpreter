@@ -48,7 +48,7 @@ where
     pub fn pop(&mut self) -> Option<T> {
         match self.items.pop_front() {
             Some(val) => {
-                self.size -= 1;
+                self.size = self.size.saturating_sub(1);
                 Some(val)
             }
             _ => None,

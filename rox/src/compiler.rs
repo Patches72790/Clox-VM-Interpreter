@@ -203,7 +203,7 @@ impl Compiler {
     }
 
     fn previous(&self) -> &Token {
-        &self.tokens[self.token_idx - 1]
+        &self.tokens[self.token_idx.saturating_sub(1)]
     }
 
     fn peek(&self) -> &Token {
@@ -685,7 +685,7 @@ impl Compiler {
     }
 
     fn emit_byte(&mut self, byte: OpCode) {
-        let line = self.tokens[self.token_idx - 1].line;
+        let line = self.previous().line;
         self.chunk.write_chunk(byte, line);
     }
 

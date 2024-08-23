@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 precedence_macro = { path = "../precedence/precedence_macro" }
 string-interner = "0.14.0"
+termion = "4.0.2"
 
 [dev-dependencies]
 criterion = "0.3"
