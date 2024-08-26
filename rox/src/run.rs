@@ -131,8 +131,7 @@ impl Config {
                     }
                     termion::event::Key::Ctrl('q' | 'd') => return,
                     termion::event::Key::Char('\n') => {
-                        repl.screen_update(crate::repl::ScreenClear::NewLine)
-                            .unwrap();
+                        repl.screen_update(ScreenClear::NewLine).unwrap();
                         repl.write("\n").unwrap();
                         break;
                     }
